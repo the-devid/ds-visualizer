@@ -1,4 +1,6 @@
 #include "two_three_tree.h"
+#include "public.h"
+#include "tree_action.h"
 
 #include <algorithm>
 #include <cassert>
@@ -22,6 +24,9 @@ bool TwoThreeTree::Contains(const Key& x) const {
 bool TwoThreeTree::Insert(const Key& x) {
     if (root_ == nullptr) {
         root_ = std::make_unique<Node>(Node{.keys = {x}, .children = {}, .parent = nullptr});
+        port_.Notify(
+            {TreeAction{.node_address = root_.get(), .action = ENodeAction::Create, .data = ProduceNodeInfo(*root_)},
+             TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
         assert(IsValid(root_.get()) && "Incorrect tree after insert");
         return true;
     }
@@ -36,6 +41,8 @@ bool TwoThreeTree::Insert(const Key& x) {
     node_was_found->keys.emplace(std::find_if(node_was_found->keys.begin(), node_was_found->keys.end(),
                                               [&x](const Key& key) { return x < key; }),
                                  x);
+    port_.Notify({TreeAction{
+        .node_address = node_was_found, .action = ENodeAction::Change, .data = ProduceNodeInfo(*node_was_found)}});
     UpdateKeys(node_was_found);
     SplitNode(node_was_found);
     assert(IsValid(root_.get()) && "Incorrect tree after insert");
@@ -64,7 +71,11 @@ bool TwoThreeTree::Erase(const Key& x) {
             UpdateKeys(vertex);
         } else {
             // Processing an internal vertex. No need to update keys, but need to also erase one of children.
+            auto erasing_address = vertex->children[erasing_ind].get();
             vertex->children.erase(vertex->children.begin() + erasing_ind);
+            port_.Notify(
+                {TreeAction{.node_address = erasing_address, .action = ENodeAction::Delete},
+                 TreeAction{.node_address = vertex, .action = ENodeAction::Change, .data = ProduceNodeInfo(*vertex)}});
         }
         if (vertex->keys.size() > 1) {
             break;
@@ -73,8 +84,11 @@ bool TwoThreeTree::Erase(const Key& x) {
         if (parent == nullptr) {
             assert(root_.get() == vertex && "Non root vertex has no parent");
             if (!vertex->children.empty()) {
+                auto old_root = root_.get();
                 root_ = std::move(root_->children[0]);
                 root_->parent = nullptr;
+                port_.Notify({TreeAction{.node_address = old_root, .action = ENodeAction::Delete},
+                              TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
             }
             break;
         }
@@ -105,9 +119,15 @@ bool TwoThreeTree::Erase(const Key& x) {
         if (sibling->keys.size() == 4) {
             parent->keys.erase(parent->keys.begin() + in_parent_ind);
             parent->children.erase(parent->children.begin() + in_parent_ind);
+            port_.Notify(
+                {TreeAction{.node_address = sibling, .action = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
+                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
             SplitNode(sibling);
             break;
         } else {
+            port_.Notify(
+                {TreeAction{.node_address = sibling, .action = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
+                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
             erasing_ind = in_parent_ind;
             vertex = parent;
         }
@@ -121,6 +141,7 @@ TwoThreeTree::Node* TwoThreeTree::SearchByLowerBound(const Key& x) const {
     if (vertex == nullptr) {
         return nullptr;
     }
+    port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
     while (!vertex->children.empty()) {
         bool found_child_to_go = false;
 
@@ -134,6 +155,7 @@ TwoThreeTree::Node* TwoThreeTree::SearchByLowerBound(const Key& x) const {
         if (!found_child_to_go) {
             vertex = vertex->children.back().get();
         }
+        port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
     }
     return vertex;
 }
@@ -147,6 +169,11 @@ void TwoThreeTree::UpdateKeys(Node* vertex) {
         for (ssize_t key_index = 0; key_index < std::ssize(vertex->keys); ++key_index) {
             vertex->keys[key_index] = vertex->children[key_index]->keys.back();
         }
+        port_.Notify({TreeAction{
+            .node_address = vertex,
+            .action = ENodeAction::Change,
+            .data = ProduceNodeInfo(*vertex),
+        }});
     }
 }
 
@@ -155,6 +182,7 @@ void TwoThreeTree::SplitNode(Node* vertex) {
     while (vertex->keys.size() > 3) {
         assert(vertex->keys.size() == 4 && "Some node in 2-3-tree has more than 4 keys at split "
                                            "stage");
+        port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
         auto first_node =
             std::make_unique<Node>(Node{.keys = {vertex->keys[0], vertex->keys[1]}, .children = {}, .parent = nullptr});
 
@@ -188,6 +216,17 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             root_->children.emplace_back(std::move(second_node));
             root_->children[0]->parent = root_.get();
             root_->children[1]->parent = root_.get();
+            port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Delete},
+                          TreeAction{.node_address = root_->children[0].get(),
+                                     .action = ENodeAction::Create,
+                                     .data = ProduceNodeInfo(*root_->children[0])},
+                          TreeAction{.node_address = root_->children[1].get(),
+                                     .action = ENodeAction::Create,
+                                     .data = ProduceNodeInfo(*root_->children[1])},
+                          TreeAction{.node_address = root_.get(),
+                                     .action = ENodeAction::Create,
+                                     .data = ProduceNodeInfo(*root_)},
+                          TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
             return;
         } else {
             auto parent = vertex->parent;
@@ -215,6 +254,15 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             parent->children[inserting_index]->parent = parent;
             parent->children[inserting_index + 1]->parent = parent;
 
+            port_.Notify(
+                {TreeAction{.node_address = vertex, .action = ENodeAction::Delete},
+                 TreeAction{.node_address = root_->children[0].get(),
+                            .action = ENodeAction::Create,
+                            .data = ProduceNodeInfo(*root_->children[0])},
+                 TreeAction{.node_address = root_->children[1].get(),
+                            .action = ENodeAction::Create,
+                            .data = ProduceNodeInfo(*root_->children[1])},
+                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
             vertex = parent;
         }
     }
@@ -245,6 +293,16 @@ bool TwoThreeTree::IsValid(Node* vertex) {
         }
     }
     return true;
+}
+
+NodeInfo TwoThreeTree::ProduceNodeInfo(const Node& martyr) {
+    NodeInfo result;
+    result.keys = martyr.keys;
+    result.children.reserve(martyr.children.size());
+    for (auto& child : martyr.children) {
+        result.children.emplace_back(child.get());
+    }
+    return result;
 }
 
 } // namespace NVis
