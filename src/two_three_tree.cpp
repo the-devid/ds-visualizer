@@ -1,4 +1,5 @@
 #include "two_three_tree.h"
+
 #include "public.h"
 #include "tree_action.h"
 
@@ -8,34 +9,40 @@
 namespace NVis {
 
 bool TwoThreeTree::Contains(const Key& x) const {
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
     auto node_was_found = SearchByLowerBound(x);
     if (node_was_found == nullptr) {
+        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
         return false;
     }
 
     for (const auto& key : node_was_found->keys) {
         if (key == x) {
+            port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
             return true;
         }
     }
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
     return false;
 }
 
 bool TwoThreeTree::Insert(const Key& x) {
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
     if (root_ == nullptr) {
         root_ = std::make_unique<Node>(Node{.keys = {x}, .children = {}, .parent = nullptr});
         port_.Notify(
             {TreeAction{.node_address = root_.get(), .action = ENodeAction::Create, .data = ProduceNodeInfo(*root_)},
              TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
         assert(IsValid(root_.get()) && "Incorrect tree after insert");
+        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
         return true;
     }
     auto node_was_found = SearchByLowerBound(x);
     assert(node_was_found->children.empty() && "Descent in 2-3 tree returned not a leaf");
 
     if (std::find(node_was_found->keys.begin(), node_was_found->keys.end(), x) != node_was_found->keys.end()) {
-
         assert(IsValid(root_.get()) && "Incorrect tree after insert");
+        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
         return false;
     }
     node_was_found->keys.emplace(std::find_if(node_was_found->keys.begin(), node_was_found->keys.end(),
@@ -46,12 +53,16 @@ bool TwoThreeTree::Insert(const Key& x) {
     UpdateKeys(node_was_found);
     SplitNode(node_was_found);
     assert(IsValid(root_.get()) && "Incorrect tree after insert");
+
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
     return true;
 }
 
 bool TwoThreeTree::Erase(const Key& x) {
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
     auto node_was_found = SearchByLowerBound(x);
     if (node_was_found == nullptr) {
+        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
         return false;
     }
     assert(node_was_found->children.empty() && "Descent in 2-3 tree returned not a leaf");
@@ -60,6 +71,7 @@ bool TwoThreeTree::Erase(const Key& x) {
 
     if (erasing_ind == vertex->keys.size()) {
         assert(IsValid(root_.get()) && "Incorrect tree after erase");
+        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
         return false;
     }
     // TODO: make more relevant condition for `while`.
@@ -133,6 +145,7 @@ bool TwoThreeTree::Erase(const Key& x) {
         }
     }
     assert(IsValid(root_.get()) && "Incorrect tree after erase");
+    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
     return true;
 }
 
@@ -303,6 +316,10 @@ NodeInfo TwoThreeTree::ProduceNodeInfo(const Node& martyr) {
         result.children.emplace_back(child.get());
     }
     return result;
+}
+
+Observable<TreeActionsBatch>* TwoThreeTree::GetPort() {
+    return &port_;
 }
 
 } // namespace NVis

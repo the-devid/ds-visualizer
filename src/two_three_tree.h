@@ -22,6 +22,8 @@ public:
     //! `false` otherwise.
     bool Erase(const Key& x);
 
+    Observable<TreeActionsBatch>* GetPort();
+
 private:
     struct Node {
         std::vector<Key> keys;
@@ -30,7 +32,7 @@ private:
     };
     std::unique_ptr<Node> root_;
     // Yes, this field is mutable so it's possible to, for example, some observer to unsubscribe on notify when
-    // processing query like `Conatins`.
+    // processing queries like `Contains`.
     mutable Observable<TreeActionsBatch> port_;
 
     //! Searches such a leaf in the tree that contains the first value greater or equal to `x`. If there's no such

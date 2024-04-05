@@ -14,6 +14,8 @@ enum class ENodeAction {
     Delete,
     Change,
     MakeRoot,
+    StartQuery,
+    EndQuery,
 };
 
 struct NodeInfo {
