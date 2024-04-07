@@ -11,8 +11,9 @@ namespace NVis {
 class View {
 public:
     View();
-    void HandleNotification(TreeActionsBatch changes);
+    void HandleNotification(TreeActionsBatch actions);
     Observer<TreeActionsBatch>* GetPort();
+    ~View();
 
 private:
     Observer<TreeActionsBatch> port_;
@@ -24,7 +25,7 @@ private:
 
     struct DrawingInfo;
     //! Kind of pimpl.
-    std::unique_ptr<DrawingInfo> animation_info_ptr_;
+    std::unique_ptr<DrawingInfo> drawing_info_ptr_;
 
     friend class Application;
 };

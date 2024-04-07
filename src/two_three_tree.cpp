@@ -9,32 +9,33 @@
 namespace NVis {
 
 bool TwoThreeTree::Contains(const Key& x) const {
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::StartQuery}});
     auto node_was_found = SearchByLowerBound(x);
     if (node_was_found == nullptr) {
-        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+        port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return false;
     }
 
     for (const auto& key : node_was_found->keys) {
         if (key == x) {
-            port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+            port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
             return true;
         }
     }
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
     return false;
 }
 
 bool TwoThreeTree::Insert(const Key& x) {
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::StartQuery}});
     if (root_ == nullptr) {
         root_ = std::make_unique<Node>(Node{.keys = {x}, .children = {}, .parent = nullptr});
-        port_.Notify(
-            {TreeAction{.node_address = root_.get(), .action = ENodeAction::Create, .data = ProduceNodeInfo(*root_)},
-             TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
+        port_.Notify({TreeAction{.node_address = root_.get(),
+                                 .action_type = ENodeAction::Create,
+                                 .data = ProduceNodeInfo(*root_)},
+                      TreeAction{.node_address = root_.get(), .action_type = ENodeAction::MakeRoot}});
         assert(IsValid(root_.get()) && "Incorrect tree after insert");
-        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+        port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return true;
     }
     auto node_was_found = SearchByLowerBound(x);
@@ -42,27 +43,27 @@ bool TwoThreeTree::Insert(const Key& x) {
 
     if (std::find(node_was_found->keys.begin(), node_was_found->keys.end(), x) != node_was_found->keys.end()) {
         assert(IsValid(root_.get()) && "Incorrect tree after insert");
-        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+        port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return false;
     }
     node_was_found->keys.emplace(std::find_if(node_was_found->keys.begin(), node_was_found->keys.end(),
                                               [&x](const Key& key) { return x < key; }),
                                  x);
     port_.Notify({TreeAction{
-        .node_address = node_was_found, .action = ENodeAction::Change, .data = ProduceNodeInfo(*node_was_found)}});
+        .node_address = node_was_found, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*node_was_found)}});
     UpdateKeys(node_was_found);
     SplitNode(node_was_found);
     assert(IsValid(root_.get()) && "Incorrect tree after insert");
 
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
     return true;
 }
 
 bool TwoThreeTree::Erase(const Key& x) {
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::StartQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::StartQuery}});
     auto node_was_found = SearchByLowerBound(x);
     if (node_was_found == nullptr) {
-        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+        port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return false;
     }
     assert(node_was_found->children.empty() && "Descent in 2-3 tree returned not a leaf");
@@ -71,7 +72,7 @@ bool TwoThreeTree::Erase(const Key& x) {
 
     if (erasing_ind == vertex->keys.size()) {
         assert(IsValid(root_.get()) && "Incorrect tree after erase");
-        port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+        port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return false;
     }
     // TODO: make more relevant condition for `while`.
@@ -85,9 +86,10 @@ bool TwoThreeTree::Erase(const Key& x) {
             // Processing an internal vertex. No need to update keys, but need to also erase one of children.
             auto erasing_address = vertex->children[erasing_ind].get();
             vertex->children.erase(vertex->children.begin() + erasing_ind);
-            port_.Notify(
-                {TreeAction{.node_address = erasing_address, .action = ENodeAction::Delete},
-                 TreeAction{.node_address = vertex, .action = ENodeAction::Change, .data = ProduceNodeInfo(*vertex)}});
+            port_.Notify({TreeAction{.node_address = erasing_address, .action_type = ENodeAction::Delete},
+                          TreeAction{.node_address = vertex,
+                                     .action_type = ENodeAction::Change,
+                                     .data = ProduceNodeInfo(*vertex)}});
         }
         if (vertex->keys.size() > 1) {
             break;
@@ -99,8 +101,8 @@ bool TwoThreeTree::Erase(const Key& x) {
                 auto old_root = root_.get();
                 root_ = std::move(root_->children[0]);
                 root_->parent = nullptr;
-                port_.Notify({TreeAction{.node_address = old_root, .action = ENodeAction::Delete},
-                              TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
+                port_.Notify({TreeAction{.node_address = old_root, .action_type = ENodeAction::Delete},
+                              TreeAction{.node_address = root_.get(), .action_type = ENodeAction::MakeRoot}});
             }
             break;
         }
@@ -132,20 +134,24 @@ bool TwoThreeTree::Erase(const Key& x) {
             parent->keys.erase(parent->keys.begin() + in_parent_ind);
             parent->children.erase(parent->children.begin() + in_parent_ind);
             port_.Notify(
-                {TreeAction{.node_address = sibling, .action = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
-                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
+                {TreeAction{
+                     .node_address = sibling, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
+                 TreeAction{
+                     .node_address = parent, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
             SplitNode(sibling);
             break;
         } else {
             port_.Notify(
-                {TreeAction{.node_address = sibling, .action = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
-                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
+                {TreeAction{
+                     .node_address = sibling, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*sibling)},
+                 TreeAction{
+                     .node_address = parent, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
             erasing_ind = in_parent_ind;
             vertex = parent;
         }
     }
     assert(IsValid(root_.get()) && "Incorrect tree after erase");
-    port_.Notify({TreeAction{.node_address = nullptr, .action = ENodeAction::EndQuery}});
+    port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
     return true;
 }
 
@@ -154,7 +160,7 @@ TwoThreeTree::Node* TwoThreeTree::SearchByLowerBound(const Key& x) const {
     if (vertex == nullptr) {
         return nullptr;
     }
-    port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
+    port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Visit}});
     while (!vertex->children.empty()) {
         bool found_child_to_go = false;
 
@@ -168,7 +174,7 @@ TwoThreeTree::Node* TwoThreeTree::SearchByLowerBound(const Key& x) const {
         if (!found_child_to_go) {
             vertex = vertex->children.back().get();
         }
-        port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
+        port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Visit}});
     }
     return vertex;
 }
@@ -184,7 +190,7 @@ void TwoThreeTree::UpdateKeys(Node* vertex) {
         }
         port_.Notify({TreeAction{
             .node_address = vertex,
-            .action = ENodeAction::Change,
+            .action_type = ENodeAction::Change,
             .data = ProduceNodeInfo(*vertex),
         }});
     }
@@ -195,7 +201,7 @@ void TwoThreeTree::SplitNode(Node* vertex) {
     while (vertex->keys.size() > 3) {
         assert(vertex->keys.size() == 4 && "Some node in 2-3-tree has more than 4 keys at split "
                                            "stage");
-        port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Visit}});
+        port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Visit}});
         auto first_node =
             std::make_unique<Node>(Node{.keys = {vertex->keys[0], vertex->keys[1]}, .children = {}, .parent = nullptr});
 
@@ -229,17 +235,17 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             root_->children.emplace_back(std::move(second_node));
             root_->children[0]->parent = root_.get();
             root_->children[1]->parent = root_.get();
-            port_.Notify({TreeAction{.node_address = vertex, .action = ENodeAction::Delete},
+            port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Delete},
                           TreeAction{.node_address = root_->children[0].get(),
-                                     .action = ENodeAction::Create,
+                                     .action_type = ENodeAction::Create,
                                      .data = ProduceNodeInfo(*root_->children[0])},
                           TreeAction{.node_address = root_->children[1].get(),
-                                     .action = ENodeAction::Create,
+                                     .action_type = ENodeAction::Create,
                                      .data = ProduceNodeInfo(*root_->children[1])},
                           TreeAction{.node_address = root_.get(),
-                                     .action = ENodeAction::Create,
+                                     .action_type = ENodeAction::Create,
                                      .data = ProduceNodeInfo(*root_)},
-                          TreeAction{.node_address = root_.get(), .action = ENodeAction::MakeRoot}});
+                          TreeAction{.node_address = root_.get(), .action_type = ENodeAction::MakeRoot}});
             return;
         } else {
             auto parent = vertex->parent;
@@ -267,15 +273,16 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             parent->children[inserting_index]->parent = parent;
             parent->children[inserting_index + 1]->parent = parent;
 
-            port_.Notify(
-                {TreeAction{.node_address = vertex, .action = ENodeAction::Delete},
-                 TreeAction{.node_address = root_->children[0].get(),
-                            .action = ENodeAction::Create,
-                            .data = ProduceNodeInfo(*root_->children[0])},
-                 TreeAction{.node_address = root_->children[1].get(),
-                            .action = ENodeAction::Create,
-                            .data = ProduceNodeInfo(*root_->children[1])},
-                 TreeAction{.node_address = parent, .action = ENodeAction::Change, .data = ProduceNodeInfo(*parent)}});
+            port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Delete},
+                          TreeAction{.node_address = root_->children[0].get(),
+                                     .action_type = ENodeAction::Create,
+                                     .data = ProduceNodeInfo(*root_->children[0])},
+                          TreeAction{.node_address = root_->children[1].get(),
+                                     .action_type = ENodeAction::Create,
+                                     .data = ProduceNodeInfo(*root_->children[1])},
+                          TreeAction{.node_address = parent,
+                                     .action_type = ENodeAction::Change,
+                                     .data = ProduceNodeInfo(*parent)}});
             vertex = parent;
         }
     }
