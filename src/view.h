@@ -22,6 +22,10 @@ private:
     //! Draws animation of all the stored changes in Model frame by frame and clears `storage_`.
     void AnimateQueries();
 
+    struct DrawingInfo;
+    //! Kind of pimpl.
+    std::unique_ptr<DrawingInfo> animation_info_ptr_;
+
     friend class Application;
 };
 
