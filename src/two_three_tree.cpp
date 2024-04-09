@@ -81,6 +81,8 @@ bool TwoThreeTree::Erase(const Key& x) {
         if (vertex->children.empty()) {
             // Processing a leaf. It has no children to delete, but erasing a key can lead to necessity of updating
             // keys.
+            port_.Notify({TreeAction{
+                .node_address = vertex, .action_type = ENodeAction::Change, .data = ProduceNodeInfo(*vertex)}});
             UpdateKeys(vertex);
         } else {
             // Processing an internal vertex. No need to update keys, but need to also erase one of children.
@@ -274,12 +276,12 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             parent->children[inserting_index + 1]->parent = parent;
 
             port_.Notify({TreeAction{.node_address = vertex, .action_type = ENodeAction::Delete},
-                          TreeAction{.node_address = root_->children[0].get(),
+                          TreeAction{.node_address = parent->children[inserting_index].get(),
                                      .action_type = ENodeAction::Create,
-                                     .data = ProduceNodeInfo(*root_->children[0])},
-                          TreeAction{.node_address = root_->children[1].get(),
+                                     .data = ProduceNodeInfo(*parent->children[inserting_index])},
+                          TreeAction{.node_address = parent->children[inserting_index + 1].get(),
                                      .action_type = ENodeAction::Create,
-                                     .data = ProduceNodeInfo(*root_->children[1])},
+                                     .data = ProduceNodeInfo(*parent->children[inserting_index + 1])},
                           TreeAction{.node_address = parent,
                                      .action_type = ENodeAction::Change,
                                      .data = ProduceNodeInfo(*parent)}});

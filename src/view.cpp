@@ -57,9 +57,12 @@ struct View::DrawingInfo {
         auto actual_height = GetHeight(root);
         node_count_on_height.assign(actual_height, 0);
         key_count_on_height.assign(actual_height, 0);
-        RecursiveRecalcOfVectors(root, actual_height);
+        RecursiveRecalcOfVectors(root, 0);
     }
     void RecursiveRecalcOfVectors(MemoryAddress vertex, ssize_t height_of_vertex) {
+        if (vertex == nullptr) {
+            return;
+        }
         ++node_count_on_height[height_of_vertex];
         key_count_on_height[height_of_vertex] += address_to_node[vertex].keys.size();
         for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
@@ -205,7 +208,7 @@ void View::AnimateQueries() {
         QTimer t;
         t.setSingleShot(true);
         QTimer::connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
-        t.start(100);
+        t.start(300);
         loop.exec();
     }
     storage_.clear();
