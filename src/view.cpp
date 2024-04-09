@@ -17,16 +17,18 @@
 #include <cassert>
 #include <memory>
 #include <optional>
+#include <qbrush.h>
+#include <qpoint.h>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace NVis {
 
 struct View::DrawingInfo {
-    static constexpr int kCellWidth = 50;
-    static constexpr int kCellHeight = 30;
-    static constexpr int kVerticalMargin = 50;
-    static constexpr int kHorizontalMargin = 50;
+    static constexpr qreal kCellWidth = 50;
+    static constexpr qreal kCellHeight = 30;
+    static constexpr qreal kVerticalMargin = 50;
+    static constexpr qreal kHorizontalMargin = 50;
 
     struct NodeForDraw {
         std::vector<Key> keys;
@@ -34,50 +36,45 @@ struct View::DrawingInfo {
         QColor background_color = QColorConstants::White;
     };
     MemoryAddress root = nullptr;
-    //! Actually stores node drawing information.
+    //! Not only maps Model nodes' addresses to drawable nodes, but also owns them.
     std::unordered_map<MemoryAddress, NodeForDraw> address_to_node;
-    std::vector<ssize_t> node_count_on_height;
-    std::vector<ssize_t> key_count_on_height;
 
-    std::vector<ssize_t> visited_node_count_on_height;
-    std::vector<ssize_t> visited_key_count_on_height;
+    // std::vector<ssize_t> visited_key_count_on_height;
+    ssize_t leaf_node_count;
+    ssize_t leaf_key_count;
+    ssize_t visited_leaf_node_count;
+    ssize_t visited_leaf_key_count;
+    // This is for "garbage collection" purposes.
     std::unordered_set<MemoryAddress> visited_nodes;
 
-    ssize_t GetHeight(MemoryAddress vertex) {
-        if (vertex == nullptr) {
-            return 0;
-        }
-        ssize_t result = 0;
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            result = std::max(result, GetHeight(address_to_node[vertex].children[i]));
-        }
-        return result + 1;
+    void RecalculateLeafCounters() {
+        leaf_node_count = 0;
+        leaf_key_count = 0;
+        RecalculateLeafCountersRecursively(root);
     }
-    void RecalculateCountVectors() {
-        auto actual_height = GetHeight(root);
-        node_count_on_height.assign(actual_height, 0);
-        key_count_on_height.assign(actual_height, 0);
-        RecursiveRecalcOfVectors(root, 0);
-    }
-    void RecursiveRecalcOfVectors(MemoryAddress vertex, ssize_t height_of_vertex) {
+    void RecalculateLeafCountersRecursively(MemoryAddress vertex) {
         if (vertex == nullptr) {
             return;
         }
-        ++node_count_on_height[height_of_vertex];
-        key_count_on_height[height_of_vertex] += address_to_node[vertex].keys.size();
+        // Leaf is a node without children.
+        if (address_to_node[vertex].children.empty()) {
+            leaf_node_count += 1;
+            leaf_key_count += std::ssize(address_to_node[vertex].keys);
+        }
         for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            RecursiveRecalcOfVectors(address_to_node[vertex].children[i], height_of_vertex + 1);
+            RecalculateLeafCountersRecursively(address_to_node[vertex].children[i]);
         }
     }
-
     void DrawTree(QGraphicsScene* scene) {
-        RecalculateCountVectors();
-        visited_node_count_on_height.assign(node_count_on_height.size(), 0);
-        visited_key_count_on_height.assign(key_count_on_height.size(), 0);
+        RecalculateLeafCounters();
+        visited_leaf_key_count = 0;
+        visited_leaf_node_count = 0;
         visited_nodes.clear();
         scene->clear();
         RecursiveDrawTree(root, scene);
+        // Cleaning backround colors for future.
         CleanUpRecursively(root);
+        // Garbage collecting. First we write all the nodes we don't need to store, then erase them.
         std::unordered_set<MemoryAddress> nodes_to_delete;
         for (const auto& [address, node] : address_to_node) {
             if (!visited_nodes.contains(address)) {
@@ -88,36 +85,52 @@ struct View::DrawingInfo {
             address_to_node.erase(deleting_address);
         }
     }
-    //! Returns top-left corner of rectangle being drawn on call.
+    //! Returns top-middle point of the rectangle bounding keys being drawn on call.
     std::optional<QPointF> RecursiveDrawTree(MemoryAddress vertex, QGraphicsScene* scene, ssize_t current_height = 0) {
         if (vertex == nullptr) {
+            // One probably should think of `if (root == nullptr)` instead of using `optional`.
             return std::nullopt;
         }
+        // Maybe "left to us" is better to understand than "lefter"...
+        auto lefter_leaf_node_count = visited_leaf_node_count;
+        auto lefter_leaf_key_count = visited_leaf_key_count;
         visited_nodes.emplace(vertex);
         std::optional<QPointF> top_left_corner;
-        std::vector<QPointF> bottom_left_corners;
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].keys); ++i) {
-            auto position_to_draw = QPoint(visited_node_count_on_height[current_height] * kVerticalMargin +
-                                               visited_key_count_on_height[current_height] * kCellWidth,
-                                           current_height * (kCellHeight + kVerticalMargin))
-                                        .toPointF();
-            if (!top_left_corner.has_value()) {
-                top_left_corner = position_to_draw;
-            }
-            bottom_left_corners.emplace_back(top_left_corner->x(), top_left_corner->y() + kCellHeight);
-            QBrush brush(address_to_node[vertex].background_color);
-            QPen pen(QColorConstants::Black);
-            scene->addRect(position_to_draw.x(), position_to_draw.y(), kCellWidth, kCellHeight, pen, brush);
-            scene->addText(QString::number(address_to_node[vertex].keys[i]))->setPos(position_to_draw);
-            ++visited_key_count_on_height[current_height];
-        }
-        ++visited_node_count_on_height[current_height];
+        std::vector<QPointF> children_positions;
+        children_positions.reserve(address_to_node[vertex].children.size());
+        // Important invariant of this function is that we first traverse through our children and only then draw
+        // ourselves.
         for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            auto end_of_arrow = RecursiveDrawTree(address_to_node[vertex].children[i], scene, current_height + 1);
-            assert(end_of_arrow.has_value() && "Incorrect position of rectangle when drawing");
-            scene->addLine(QLineF(bottom_left_corners[i], end_of_arrow.value()));
+            auto child_position = RecursiveDrawTree(address_to_node[vertex].children[i], scene, current_height + 1);
+            assert(child_position.has_value() && "Incorrect position of rectangle when drawing");
+            children_positions.emplace_back(child_position.value());
         }
-        return top_left_corner;
+        if (address_to_node[vertex].children.empty()) {
+            visited_leaf_node_count++;
+            visited_leaf_key_count += std::ssize(address_to_node[vertex].keys);
+        }
+        qreal left_subtree_border = lefter_leaf_key_count * kCellWidth + lefter_leaf_node_count * kHorizontalMargin;
+        qreal right_subtree_border =
+            visited_leaf_key_count * kCellWidth + (visited_leaf_node_count - 1) * kHorizontalMargin;
+        // Middle point of the node being drawn. Yeah, try to fit it in a variable's name. I'd prefer to write code in
+        // cyrillic at moments like that...
+        // And yes, I could write `(l+r)/2` instead of `l+(r-l)/2`, but second option seems more precision-friendly.
+        qreal drawing_node_midpoint = left_subtree_border + (right_subtree_border - left_subtree_border) / 2.0;
+        top_left_corner = QPointF(drawing_node_midpoint - address_to_node[vertex].keys.size() * kCellWidth / 2.0,
+                                  current_height * (kCellHeight + kHorizontalMargin));
+
+        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].keys); ++i) {
+            auto position_to_draw = QPointF(top_left_corner->x() + i * kCellWidth, top_left_corner->y());
+            scene->addRect(position_to_draw.x(), position_to_draw.y(), kCellWidth, kCellHeight, QPen(),
+                           QBrush(address_to_node[vertex].background_color));
+            scene->addText(QString::number(address_to_node[vertex].keys[i]))->setPos(position_to_draw);
+            if (!children_positions.empty()) {
+                scene->addLine(
+                    QLineF(QPointF(position_to_draw.x() + kCellWidth / 2.0, position_to_draw.y() + kCellHeight),
+                           children_positions[i]));
+            }
+        }
+        return QPointF(drawing_node_midpoint, top_left_corner->y());
     }
     void CleanUpRecursively(MemoryAddress vertex) {
         if (vertex == nullptr) {
