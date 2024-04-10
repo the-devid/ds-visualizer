@@ -21,6 +21,8 @@ private:
 
     Model* model_;
 
+    void SetButtonsState(bool enabled);
+
     friend class Application;
 };
 
