@@ -31,3 +31,7 @@
 *.out
 *.app
 
+# Custom
+src/reference_two_three_tree.h
+build
+.cache

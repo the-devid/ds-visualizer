@@ -8,6 +8,14 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Gui)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+find_program(CLANG_TIDY_EXECUTABLE "clang-tidy")
+if (CLANG_TIDY_EXECUTABLE)
+  message(STATUS "Found clang-tidy: ${CLANG_TIDY_EXECUTABLE}")
+  set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+else()
+  message(STATUS "clang-tidy not found")
+endif()
+
 add_executable(ds_visualizer
     main.cpp 
     src/application.cpp
@@ -22,5 +30,5 @@ target_link_libraries(ds_visualizer Qt6::Widgets Qt6::Gui)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Werror")
 endif()
