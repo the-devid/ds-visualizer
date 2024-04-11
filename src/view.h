@@ -27,6 +27,7 @@ private:
     //! Kind of pimpl.
     std::unique_ptr<DrawingInfo> drawing_info_ptr_;
 
+    static constexpr int kDelayBetweenFrames = 300;
     friend class Application;
 };
 

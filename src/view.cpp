@@ -12,14 +12,12 @@
 #include <QLine>
 #include <QPen>
 #include <QRect>
+#include <QThread>
 #include <QTimer>
 
 #include <cassert>
 #include <memory>
 #include <optional>
-#include <qbrush.h>
-#include <qfont.h>
-#include <qpoint.h>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -182,6 +180,17 @@ Observer<TreeActionsBatch>* View::GetPort() {
     return &port_;
 }
 
+namespace {
+void DoNonBlockingDelay(int delay_msec) {
+    QEventLoop loop;
+    QTimer t;
+    t.setSingleShot(true);
+    QTimer::connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
+    t.start(delay_msec);
+    loop.exec();
+}
+} // namespace
+
 void View::AnimateQueries() {
     for (const auto& actions_batch : storage_) {
         for (const auto& action : actions_batch) {
@@ -232,12 +241,9 @@ void View::AnimateQueries() {
             }
         }
         drawing_info_ptr_->DrawTree(&scene_);
-        QEventLoop loop;
-        QTimer t;
-        t.setSingleShot(true);
-        QTimer::connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
-        t.start(300);
-        loop.exec();
+        // TODO: very dangerous part here wants to be rewritten, because we depend on the hope that all `scene_`
+        // changes will be drawn during this delay.
+        DoNonBlockingDelay(kDelayBetweenFrames);
     }
     storage_.clear();
 }
