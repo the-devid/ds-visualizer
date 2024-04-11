@@ -19,8 +19,8 @@ Window::Window(QWidget* parent)
     QWidget* central_widget = new QWidget(this);
     setCentralWidget(central_widget);
     centralWidget()->setLayout(layout_);
-    setMinimumWidth(width_);
-    setMinimumHeight(height_);
+    setMinimumWidth(kWidth);
+    setMinimumHeight(kHeight);
     show();
 }
 

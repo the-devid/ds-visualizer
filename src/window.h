@@ -29,8 +29,8 @@ private:
     QPushButton* erase_button_;
     QPushButton* search_button_;
 
-    static constexpr int width_ = 1280;
-    static constexpr int height_ = 720;
+    static constexpr int kWidth = 1280;
+    static constexpr int kHeight = 720;
 
     friend class Application;
 };

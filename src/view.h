@@ -2,7 +2,6 @@
 
 #include "observer.h"
 #include "public.h"
-#include "tree_action.h"
 
 #include <QGraphicsScene>
 

@@ -70,13 +70,13 @@ bool TwoThreeTree::Erase(const Key& x) {
     auto vertex = node_was_found;
     ssize_t erasing_ind = std::find(vertex->keys.begin(), vertex->keys.end(), x) - vertex->keys.begin();
 
-    if (erasing_ind == vertex->keys.size()) {
+    if (erasing_ind == std::ssize(vertex->keys)) {
         assert(IsValid(root_.get()) && "Incorrect tree after erase");
         port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery}});
         return false;
     }
     // TODO: make more relevant condition for `while`.
-    while (erasing_ind != vertex->keys.size()) {
+    while (erasing_ind != std::ssize(vertex->keys)) {
         vertex->keys.erase(vertex->keys.begin() + erasing_ind);
         if (vertex->children.empty()) {
             // Processing a leaf. It has no children to delete, but erasing a key can lead to necessity of updating
@@ -115,7 +115,7 @@ bool TwoThreeTree::Erase(const Key& x) {
                                              [vertex](const auto& child_ptr) { return child_ptr.get() == vertex; }) -
                                 parent->children.begin();
 
-        assert(in_parent_ind != parent->children.size() && "Haven't found vertex in children array of its parent");
+        assert(in_parent_ind != std::ssize(parent->children) && "Haven't found vertex in children array of its parent");
         Node* sibling;
         if (in_parent_ind > 0) {
             // Merging to left sibling
@@ -263,7 +263,7 @@ void TwoThreeTree::SplitNode(Node* vertex) {
                     break;
                 }
             }
-            assert(inserting_index != parent->children.size() &&
+            assert(inserting_index != std::ssize(parent->children) &&
                    "Not found vertex itself in its parent's children array.");
 
             // We're inserting keys and children in reversed order because we don't move |inserting_index| and
@@ -300,7 +300,7 @@ bool TwoThreeTree::IsValid(Node* vertex) {
     if (!vertex->children.empty() && vertex->children.size() != vertex->keys.size()) {
         return false; // Incorrect internal node
     }
-    if (!((vertex == root_.get() && vertex->keys.size() >= 1 && vertex->keys.size() <= 3) ||
+    if (!((vertex == root_.get() && !vertex->keys.empty() && vertex->keys.size() <= 3) ||
           (vertex->keys.size() >= 2 && vertex->keys.size() <= 3))) {
         return false; // Incorrect key count
     }
