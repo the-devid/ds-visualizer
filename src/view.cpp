@@ -207,13 +207,16 @@ void View::AnimateQueries() {
                 };
                 break;
             case ENodeAction::MakeRoot:
-                assert(drawing_info_ptr_->address_to_node.contains(action.node_address) &&
+                assert((action.node_address == nullptr ||
+                        drawing_info_ptr_->address_to_node.contains(action.node_address)) &&
                        "Making a non-existing node a root");
                 drawing_info_ptr_->root = action.node_address;
+                break;
             case ENodeAction::Visit:
                 assert(drawing_info_ptr_->address_to_node.contains(action.node_address) &&
                        "Visiting a non-existing node");
                 drawing_info_ptr_->address_to_node[action.node_address].background_color = QColorConstants::Cyan;
+                break;
             }
         }
         drawing_info_ptr_->DrawTree(&scene_);

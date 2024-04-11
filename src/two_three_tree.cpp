@@ -105,6 +105,9 @@ bool TwoThreeTree::Erase(const Key& x) {
                 root_->parent = nullptr;
                 port_.Notify({TreeAction{.node_address = old_root, .action_type = ENodeAction::Delete},
                               TreeAction{.node_address = root_.get(), .action_type = ENodeAction::MakeRoot}});
+            } else if (vertex->keys.empty()) {
+                root_ = nullptr;
+                port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::MakeRoot}});
             }
             break;
         }
