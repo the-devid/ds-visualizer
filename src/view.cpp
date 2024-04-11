@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <qbrush.h>
+#include <qfont.h>
 #include <qpoint.h>
 #include <unordered_map>
 #include <unordered_set>
@@ -112,18 +113,29 @@ struct View::DrawingInfo {
         qreal left_subtree_border = lefter_leaf_key_count * kCellWidth + lefter_leaf_node_count * kHorizontalMargin;
         qreal right_subtree_border =
             visited_leaf_key_count * kCellWidth + (visited_leaf_node_count - 1) * kHorizontalMargin;
-        // Middle point of the node being drawn. Yeah, try to fit it in a variable's name. I'd prefer to write code in
-        // cyrillic at moments like that...
-        // And yes, I could write `(l+r)/2` instead of `l+(r-l)/2`, but second option seems more precision-friendly.
+        // "A middle point of the node being drawn". Yeah, try to fit it in a variable's name. I'd prefer to write code
+        // in cyrillic at moments like that... And yes, I could write `(l+r)/2` instead of `l+(r-l)/2`, but second
+        // option seems more precision-friendly and intuitive.
         qreal drawing_node_midpoint = left_subtree_border + (right_subtree_border - left_subtree_border) / 2.0;
         top_left_corner = QPointF(drawing_node_midpoint - address_to_node[vertex].keys.size() * kCellWidth / 2.0,
                                   current_height * (kCellHeight + kHorizontalMargin));
 
         for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].keys); ++i) {
             auto position_to_draw = QPointF(top_left_corner->x() + i * kCellWidth, top_left_corner->y());
-            scene->addRect(position_to_draw.x(), position_to_draw.y(), kCellWidth, kCellHeight, QPen(),
-                           QBrush(address_to_node[vertex].background_color));
-            scene->addText(QString::number(address_to_node[vertex].keys[i]))->setPos(position_to_draw);
+            auto rectangle_item = scene->addRect(position_to_draw.x(), position_to_draw.y(), kCellWidth, kCellHeight,
+                                                 QPen(), QBrush(address_to_node[vertex].background_color));
+            auto text_item = scene->addText(QString::number(address_to_node[vertex].keys[i]));
+            // Positioning in the center of Cell.
+            text_item->setPos(rectangle_item->mapToScene(rectangle_item->boundingRect().center()) +
+                              (text_item->boundingRect().topLeft() - text_item->boundingRect().center()));
+            // Scale text from the center.
+            text_item->setTransformOriginPoint(text_item->boundingRect().center());
+            // TODO: maybe common scale factor for all keys would look better.
+            auto text_scale_factor =
+                std::min(rectangle_item->boundingRect().width() / text_item->boundingRect().width(),
+                         rectangle_item->boundingRect().height() / text_item->boundingRect().height());
+            text_item->setScale(text_scale_factor);
+
             if (!children_positions.empty()) {
                 scene->addLine(
                     QLineF(QPointF(position_to_draw.x() + kCellWidth / 2.0, position_to_draw.y() + kCellHeight),

@@ -12,7 +12,6 @@ Application& Application::Instance() {
 }
 
 Application::Application() {
-
     QObject::connect(window_.insert_button_, &QPushButton::clicked, &controller_, [this]() {
         auto input = window_.key_edit_->text();
         window_.key_edit_->clear();
