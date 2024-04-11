@@ -10,9 +10,9 @@ namespace NVis {
 class Controller : public QObject {
     Q_OBJECT
 public slots:
-    void OnInsertButtonClick(Key x);
-    void OnEraseButtonClick(Key x);
-    void OnSearchButtonClick(Key x);
+    void OnInsertButtonClick(QString input);
+    void OnEraseButtonClick(QString input);
+    void OnSearchButtonClick(QString input);
 
 private:
     QPushButton* insert_button_;

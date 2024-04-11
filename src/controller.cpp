@@ -3,26 +3,52 @@
 #include "public.h"
 #include "two_three_tree.h"
 
+#include <QMessageBox>
+
 namespace NVis {
 
-void Controller::OnInsertButtonClick(Key x) {
+void Controller::OnInsertButtonClick(QString input) {
     SetButtonsState(/*enabled=*/false);
     if (model_) {
-        model_->Insert(x);
+        bool is_correct_value;
+        Key key = input.toInt(&is_correct_value);
+        if (!is_correct_value) {
+            QMessageBox error_box;
+            error_box.setText("Input contains not a valid number!");
+            error_box.exec();
+        } else {
+            model_->Insert(key);
+        }
     }
     SetButtonsState(/*enabled=*/true);
 }
-void Controller::OnEraseButtonClick(Key x) {
+void Controller::OnEraseButtonClick(QString input) {
     SetButtonsState(/*enabled=*/false);
     if (model_) {
-        model_->Erase(x);
+        bool is_correct_value;
+        Key key = input.toInt(&is_correct_value);
+        if (!is_correct_value) {
+            QMessageBox error_box;
+            error_box.setText("Input contains not a valid number!");
+            error_box.exec();
+        } else {
+            model_->Erase(key);
+        }
     }
     SetButtonsState(/*enabled=*/true);
 }
-void Controller::OnSearchButtonClick(Key x) {
+void Controller::OnSearchButtonClick(QString input) {
     SetButtonsState(/*enabled=*/false);
     if (model_) {
-        model_->Contains(x);
+        bool is_correct_value;
+        Key key = input.toInt(&is_correct_value);
+        if (!is_correct_value) {
+            QMessageBox error_box;
+            error_box.setText("Input contains not a valid number!");
+            error_box.exec();
+        } else {
+            model_->Contains(key);
+        }
     }
     SetButtonsState(/*enabled=*/true);
 }
