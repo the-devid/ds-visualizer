@@ -16,6 +16,17 @@ else()
   message(STATUS "clang-tidy not found")
 endif()
 
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+    add_compile_options(-g -O0)
+  endif()
+  add_compile_options(-Wall -Wextra -Werror)
+endif()
+if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  add_compile_options(/W4)
+endif()
+
 add_executable(ds_visualizer
     main.cpp 
     src/application.cpp
@@ -29,6 +40,12 @@ target_link_libraries(ds_visualizer Qt6::Widgets Qt6::Gui)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Werror")
+if (TESTS)
+  add_subdirectory(lib/gtest)
+  enable_testing()
+  include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+  add_executable(test_two_three_tree
+      src/two_three_tree.cpp
+      tests/two_three_tree_ut.cpp)
+  target_link_libraries(test_two_three_tree gtest gtest_main)
 endif()
