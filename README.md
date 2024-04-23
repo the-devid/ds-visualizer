@@ -3,14 +3,14 @@
 ## Сборка
 Находясь в сборочной директории, если `path/to/dir` - путь до файла `CMakeLists.txt` из данного проекта, выполнить следующее:
 ```bash
-cmake path/to/dir
-make
+cmake path/to/dir -DCMAKE_BUILD_TYPE=RELEASE
+make ds_visualizer
 ```
 После чего будет собран исполняемый файл `ds_visualizer`.
 
 Находясь в корне склонированного репозитория можно сделать
 ```bash
 mkdir build && cd $_
-cmake ..
-make
+cmake ..  -DCMAKE_BUILD_TYPE=RELEASE
+make ds_visualizer
 ```
