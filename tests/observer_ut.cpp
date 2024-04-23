@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 
 namespace NVis {
 
@@ -110,6 +111,20 @@ TEST(ObserverCorrectness, MultipleUnsubscribes) {
     observable->Notify(3);
     observer->Unsubscribe();
     EXPECT_EQ(out.str(), "+1-+3-");
+}
+
+TEST(ObserverCorrectness, Exception) {
+    std::stringstream out;
+    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
+                                                    [&out]() { out << "-"; });
+    try {
+        auto observable = std::make_unique<Observable<int>>();
+        observable->Subscribe(observer.get());
+        observable->Notify(1);
+        throw std::runtime_error{""};
+    } catch (...) {
+    }
+    EXPECT_EQ(out.str(), "+1-");
 }
 
 } // namespace NVis
