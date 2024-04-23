@@ -48,4 +48,8 @@ if (TESTS)
       src/two_three_tree.cpp
       tests/two_three_tree_ut.cpp)
   target_link_libraries(test_two_three_tree gtest gtest_main)
+
+  add_executable(test_observer
+      tests/observer_ut.cpp)
+  target_link_libraries(test_observer gtest gtest_main)
 endif()
