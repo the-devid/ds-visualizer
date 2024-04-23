@@ -16,15 +16,14 @@ else()
   message(STATUS "clang-tidy not found")
 endif()
 
-
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
     add_compile_options(-g -O0)
+    add_compile_options(-Wall -Wextra -Werror)
   endif()
-  add_compile_options(-Wall -Wextra -Werror)
 endif()
 if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-  add_compile_options(/W4)
+  add_compile_options(/W4 /WX)
 endif()
 
 add_executable(ds_visualizer
@@ -35,6 +34,10 @@ add_executable(ds_visualizer
     src/view.cpp
     src/window.cpp
 )
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  target_compile_options(ds_visualizer PRIVATE -fno-exceptions)
+endif()
 
 target_link_libraries(ds_visualizer Qt6::Widgets Qt6::Gui)
 
