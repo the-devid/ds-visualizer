@@ -38,7 +38,6 @@ struct View::DrawingInfo {
     //! Not only maps Model nodes' addresses to drawable nodes, but also owns them.
     std::unordered_map<MemoryAddress, NodeForDraw> address_to_node;
 
-    // std::vector<ssize_t> visited_key_count_on_height;
     ssize_t leaf_node_count;
     ssize_t leaf_key_count;
     ssize_t visited_leaf_node_count;
@@ -72,7 +71,7 @@ struct View::DrawingInfo {
         scene->clear();
         RecursiveDrawTree(root, scene);
         // Cleaning backround colors for future.
-        CleanUpRecursively(root);
+        CleanBackgroundRecursively(root);
         // Garbage collecting. First we write all the nodes we don't need to store, then erase them.
         std::unordered_set<MemoryAddress> nodes_to_delete;
         for (const auto& [address, node] : address_to_node) {
@@ -84,7 +83,7 @@ struct View::DrawingInfo {
             address_to_node.erase(deleting_address);
         }
     }
-    //! Returns top-middle point of the rectangle bounding keys being drawn on call.
+    //! Returns top-middle point of the rectangle, which bounds keys that are drawn on call.
     std::optional<QPointF> RecursiveDrawTree(MemoryAddress vertex, QGraphicsScene* scene, ssize_t current_height = 0) {
         if (vertex == nullptr) {
             // One probably should think of `if (root == nullptr)` instead of using `optional`.
@@ -111,9 +110,8 @@ struct View::DrawingInfo {
         qreal left_subtree_border = lefter_leaf_key_count * kCellWidth + lefter_leaf_node_count * kHorizontalMargin;
         qreal right_subtree_border =
             visited_leaf_key_count * kCellWidth + (visited_leaf_node_count - 1) * kHorizontalMargin;
-        // "A middle point of the node being drawn". Yeah, try to fit it in a variable's name. I'd prefer to write code
-        // in cyrillic at moments like that... And yes, I could write `(l+r)/2` instead of `l+(r-l)/2`, but second
-        // option seems more precision-friendly and intuitive.
+        // "A middle point of the node being drawn". Try to fit it in a variable's name. And yes, we could write
+        // `(l+r)/2` instead of `l+(r-l)/2`, but second option seems more precision-friendly and intuitive.
         qreal drawing_node_midpoint = left_subtree_border + (right_subtree_border - left_subtree_border) / 2.0;
         top_left_corner = QPointF(drawing_node_midpoint - address_to_node[vertex].keys.size() * kCellWidth / 2.0,
                                   current_height * (kCellHeight + kHorizontalMargin));
@@ -142,13 +140,13 @@ struct View::DrawingInfo {
         }
         return QPointF(drawing_node_midpoint, top_left_corner->y());
     }
-    void CleanUpRecursively(MemoryAddress vertex) {
+    void CleanBackgroundRecursively(MemoryAddress vertex) {
         if (vertex == nullptr) {
             return;
         }
         address_to_node[vertex].background_color = QColorConstants::White;
         for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            CleanUpRecursively(address_to_node[vertex].children[i]);
+            CleanBackgroundRecursively(address_to_node[vertex].children[i]);
         }
     }
 };
@@ -156,6 +154,7 @@ struct View::DrawingInfo {
 View::View()
     : port_([]() {}, [this](TreeActionsBatch changes) { this->HandleNotification(changes); }, []() {}),
       drawing_info_ptr_(std::make_unique<DrawingInfo>()) {}
+
 View::~View() {}
 
 void View::HandleNotification(TreeActionsBatch actions) {
@@ -201,7 +200,6 @@ void View::AnimateQueries() {
             case ENodeAction::EndQuery:
                 assert(false && "Incorrect action type in animation procedure");
                 return;
-
             case ENodeAction::Create:
                 assert(!drawing_info_ptr_->address_to_node.contains(action.node_address) &&
                        "Creating already existed node");
@@ -241,8 +239,7 @@ void View::AnimateQueries() {
             }
         }
         drawing_info_ptr_->DrawTree(&scene_);
-        // TODO: very dangerous part here wants to be rewritten, because we depend on the hope that all `scene_`
-        // changes will be drawn during this delay.
+        // It seems dangerous.
         DoNonBlockingDelay(kDelayBetweenFrames);
     }
     storage_.clear();

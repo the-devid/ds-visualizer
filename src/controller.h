@@ -18,11 +18,9 @@ private:
     QPushButton* insert_button_;
     QPushButton* erase_button_;
     QPushButton* search_button_;
-
     Model* model_;
 
     void SetButtonsState(bool enabled);
-
     friend class Application;
 };
 

@@ -33,7 +33,6 @@ Application::Application() {
 
     controller_.model_ = &model_;
     model_.GetPort()->Subscribe(view_.GetPort());
-
     window_.view_->setScene(&view_.scene_);
 }
 

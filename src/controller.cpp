@@ -22,6 +22,7 @@ void Controller::OnInsertButtonClick(QString input) {
     }
     SetButtonsState(/*enabled=*/true);
 }
+
 void Controller::OnEraseButtonClick(QString input) {
     SetButtonsState(/*enabled=*/false);
     if (model_) {
@@ -37,6 +38,7 @@ void Controller::OnEraseButtonClick(QString input) {
     }
     SetButtonsState(/*enabled=*/true);
 }
+
 void Controller::OnSearchButtonClick(QString input) {
     SetButtonsState(/*enabled=*/false);
     if (model_) {

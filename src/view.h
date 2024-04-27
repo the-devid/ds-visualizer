@@ -22,8 +22,8 @@ private:
     //! Draws animation of all the stored changes in Model frame by frame and clears `storage_`.
     void AnimateQueries();
 
-    struct DrawingInfo;
     //! Kind of pimpl.
+    struct DrawingInfo;
     std::unique_ptr<DrawingInfo> drawing_info_ptr_;
 
     static constexpr int kDelayBetweenFrames = 300;

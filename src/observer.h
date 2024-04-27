@@ -37,7 +37,6 @@ public:
             observable_ = nullptr;
         }
     }
-
     bool IsSubscribed() const {
         return observable_ != nullptr;
     }
@@ -55,8 +54,6 @@ private:
 
 template <class TData>
 class Observable {
-    friend Observer<TData>;
-
 public:
     Observable() = default;
 
@@ -80,7 +77,6 @@ public:
         observer->SetObservable(this);
         observer->on_subscribe_();
     }
-
     void Notify(TData data) {
         for (auto& subscriber : subscribers_) {
             subscriber->on_notify_(data);
@@ -94,6 +90,7 @@ private:
         observer->on_unsubscribe_();
     }
     std::list<Observer<TData>*> subscribers_;
+    friend Observer<TData>;
 };
 
 } // namespace NVis

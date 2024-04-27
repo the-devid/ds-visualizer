@@ -15,7 +15,6 @@ bool TwoThreeTree::Contains(const Key& x) const {
         port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery, .data = std::nullopt}});
         return false;
     }
-
     for (const auto& key : node_was_found->keys) {
         if (key == x) {
             port_.Notify(
@@ -258,7 +257,6 @@ void TwoThreeTree::SplitNode(Node* vertex) {
             return;
         } else {
             auto parent = vertex->parent;
-
             ssize_t inserting_index = std::ssize(parent->children);
             for (ssize_t child_index = 0; child_index < std::ssize(parent->children); ++child_index) {
 
