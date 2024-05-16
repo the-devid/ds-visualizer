@@ -21,8 +21,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU"
     add_compile_options(-g -O0)
   endif()
   add_compile_options(-Wall -Wextra -Werror)
-endif()
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   add_compile_options(/W4 /WX)
 endif()
 
@@ -37,6 +36,8 @@ add_executable(ds_visualizer
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   target_compile_options(ds_visualizer PRIVATE -fno-exceptions)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  target_compile_options(ds_visualizer PRIVATE /D_HAS_EXCEPTIONS=0)
 endif()
 
 target_link_libraries(ds_visualizer Qt6::Widgets Qt6::Gui)
