@@ -4,58 +4,96 @@
 #include "two_three_tree.h"
 
 #include <QMessageBox>
+#include <optional>
 
 namespace NVis {
 
-void Controller::OnInsertButtonClick(QString input) {
+namespace {
+void ShowIncorrectInputMessage() {
+    QMessageBox error_box;
+    error_box.setText("Input contains not a valid number!");
+    error_box.exec();
+}
+} // namespace
+
+Controller::Controller(Model* model, QLineEdit* key_edit, QPushButton* insert_button, QPushButton* erase_button,
+                       QPushButton* search_button)
+    : model_(model),
+      key_edit_(key_edit),
+      insert_button_(insert_button),
+      erase_button_(erase_button),
+      search_button_(search_button) {}
+
+void Controller::OnInsertButtonClick() {
     SetButtonsState(/*enabled=*/false);
-    if (model_) {
-        bool is_correct_value;
-        Key key = input.toInt(&is_correct_value);
-        if (!is_correct_value) {
-            QMessageBox error_box;
-            error_box.setText("Input contains not a valid number!");
-            error_box.exec();
-        } else {
-            model_->Insert(key);
-        }
-    }
+    HandleInsertRequest();
     SetButtonsState(/*enabled=*/true);
 }
 
-void Controller::OnEraseButtonClick(QString input) {
+void Controller::OnEraseButtonClick() {
     SetButtonsState(/*enabled=*/false);
-    if (model_) {
-        bool is_correct_value;
-        Key key = input.toInt(&is_correct_value);
-        if (!is_correct_value) {
-            QMessageBox error_box;
-            error_box.setText("Input contains not a valid number!");
-            error_box.exec();
-        } else {
-            model_->Erase(key);
-        }
-    }
+    HandleEraseRequest();
     SetButtonsState(/*enabled=*/true);
 }
 
-void Controller::OnSearchButtonClick(QString input) {
+void Controller::OnSearchButtonClick() {
     SetButtonsState(/*enabled=*/false);
-    if (model_) {
-        bool is_correct_value;
-        Key key = input.toInt(&is_correct_value);
-        if (!is_correct_value) {
-            QMessageBox error_box;
-            error_box.setText("Input contains not a valid number!");
-            error_box.exec();
-        } else {
-            model_->Contains(key);
-        }
-    }
+    HandleSearchRequest();
     SetButtonsState(/*enabled=*/true);
 }
 
-void Controller::SetButtonsState(bool enabled) {
+void Controller::HandleInsertRequest() const {
+    if (!model_) {
+        return;
+    }
+    auto maybe_key = TryGetKeyFromEdit();
+    if (!maybe_key) {
+        ShowIncorrectInputMessage();
+    } else {
+        model_->Insert(*maybe_key);
+    }
+}
+
+void Controller::HandleEraseRequest() const {
+    if (!model_) {
+        return;
+    }
+    auto maybe_key = TryGetKeyFromEdit();
+    if (!maybe_key) {
+        ShowIncorrectInputMessage();
+    } else {
+        model_->Erase(*maybe_key);
+    }
+}
+
+void Controller::HandleSearchRequest() const {
+    if (!model_) {
+        return;
+    }
+    auto maybe_key = TryGetKeyFromEdit();
+    if (!maybe_key) {
+        ShowIncorrectInputMessage();
+    } else {
+        model_->Contains(*maybe_key);
+    }
+}
+
+std::optional<Key> Controller::TryGetKeyFromEdit() const {
+    if (!key_edit_) {
+        return std::nullopt;
+    }
+    bool is_correct_value;
+    auto input = key_edit_->text();
+    key_edit_->setText("");
+    Key key = input.toInt(&is_correct_value);
+    if (is_correct_value) {
+        return key;
+    } else {
+        return std::nullopt;
+    }
+}
+
+void Controller::SetButtonsState(bool enabled) const {
     if (insert_button_) {
         insert_button_->setEnabled(enabled);
     }

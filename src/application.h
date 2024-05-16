@@ -12,20 +12,18 @@ public:
     static Application& Instance();
 
 private:
-    View view_;
-    Window window_;
-
-    Model model_;
-    Controller controller_;
-
     Application();
 
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;
     Application& operator=(Application&&) = delete;
+    ~Application() = default;
 
-    ~Application();
+    View view_;
+    Window window_;
+    Model model_;
+    Controller controller_;
 };
 
 } // namespace NVis
