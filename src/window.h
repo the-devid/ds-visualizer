@@ -14,15 +14,20 @@ namespace NVis {
 class Window : public QMainWindow {
     Q_OBJECT
 public:
-    Window(QWidget* parent = nullptr);
+    Window();
 
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
     Window(Window&&) = delete;
     Window& operator=(Window&&) = delete;
 
+    void SubscribeViewWidgetTo(QGraphicsScene* scene);
+    QLineEdit* GetKeyEdit();
+    QPushButton* GetInsertButton();
+    QPushButton* GetEraseButton();
+    QPushButton* GetSearchButton();
+
 private:
-    QGridLayout* layout_;
     QGraphicsView* view_;
     QLineEdit* key_edit_;
     QPushButton* insert_button_;
@@ -31,8 +36,6 @@ private:
 
     static constexpr int kWidth = 1280;
     static constexpr int kHeight = 720;
-
-    friend class Application;
 };
 
 } // namespace NVis

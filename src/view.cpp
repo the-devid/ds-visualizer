@@ -162,23 +162,22 @@ View::View()
 View::~View() = default;
 
 void View::HandleNotification(const TreeActionsBatch& actions) {
-    ssize_t processed_cnt = 0;
-    for (const auto& action : actions) {
-        ++processed_cnt;
+    for (ssize_t action_ind = 0; action_ind < std::ssize(actions); ++action_ind) {
+        const auto& action = actions[action_ind];
         if (action.action_type == ENodeAction::StartQuery) {
-            assert(processed_cnt == 1 && "Garbage before StartQuery action");
+            assert(action_ind == 0 && "Garbage before StartQuery action");
             // Note: this case is significant for async animation. It doesn't matter while animation happens in
             // signal-handler (being a long-time operation), so we simply check a correctness of an operation.
             assert(storage_.empty());
-            return;
         }
         if (action.action_type == ENodeAction::EndQuery) {
-            assert(processed_cnt == std::ssize(actions) && "Garbage after EndQuery action");
-            AnimateQueries();
-            return;
+            assert(action_ind + 1 == std::ssize(actions) && "Garbage after EndQuery action");
         }
     }
     storage_.emplace_back(actions);
+    if (actions.back().action_type == ENodeAction::EndQuery) {
+        AnimateQueries();
+    }
 }
 
 Observer<TreeActionsBatch>* View::GetTreeActionsPort() {

@@ -4,8 +4,6 @@
 #include "src/view.h"
 #include "src/window.h"
 
-#include <QMessageBox>
-
 namespace NVis {
 
 Application& Application::Instance() {
@@ -17,14 +15,16 @@ Application::Application()
     : view_(),
       window_(),
       model_(),
-      controller_(&model_, window_.key_edit_, window_.insert_button_, window_.erase_button_, window_.search_button_) {
+      controller_(&model_, window_.GetKeyEdit(), window_.GetInsertButton(), window_.GetEraseButton(),
+                  window_.GetSearchButton()) {
 
-    QObject::connect(window_.insert_button_, &QPushButton::clicked, &controller_, &Controller::OnInsertButtonClick);
-    QObject::connect(window_.erase_button_, &QPushButton::clicked, &controller_, &Controller::OnEraseButtonClick);
-    QObject::connect(window_.search_button_, &QPushButton::clicked, &controller_, &Controller::OnSearchButtonClick);
+    QObject::connect(window_.GetInsertButton(), &QPushButton::clicked, &controller_, &Controller::OnInsertButtonClick);
+    QObject::connect(window_.GetEraseButton(), &QPushButton::clicked, &controller_, &Controller::OnEraseButtonClick);
+    QObject::connect(window_.GetSearchButton(), &QPushButton::clicked, &controller_, &Controller::OnSearchButtonClick);
 
     model_.SubscribeObserver(view_.GetTreeActionsPort());
-    window_.view_->setScene(view_.GetGraphicsModelPort());
+    window_.SubscribeViewWidgetTo(view_.GetGraphicsModelPort());
+    window_.show();
 }
 
 } // namespace NVis

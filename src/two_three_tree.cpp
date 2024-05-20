@@ -354,7 +354,7 @@ void TwoThreeTree::TraverseForTreeInfo(Node* vertex, TreeActionsBatch& info_stor
     if (vertex == nullptr) {
         return;
     }
-    for (ssize_t child_index = 0; child_index < std::ssize(vertex->keys); ++child_index) {
+    for (ssize_t child_index = 0; child_index < std::ssize(vertex->children); ++child_index) {
         TraverseForTreeInfo(vertex->children[child_index].get(), info_storage);
     }
     info_storage.emplace_back(
