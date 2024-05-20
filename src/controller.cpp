@@ -1,9 +1,7 @@
 #include "controller.h"
 
-#include "public.h"
-#include "two_three_tree.h"
-
 #include <QMessageBox>
+
 #include <optional>
 
 namespace NVis {

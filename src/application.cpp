@@ -1,6 +1,5 @@
 #include "application.h"
 
-#include "public.h"
 #include "src/view.h"
 #include "src/window.h"
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "public.h"
-
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -18,6 +16,9 @@ enum class ENodeAction {
     EndQuery,
 };
 
+using Key = int;
+using MemoryAddress = void*;
+
 struct NodeInfo {
     std::vector<Key> keys;
     std::vector<MemoryAddress> children;
@@ -30,5 +31,7 @@ struct TreeAction {
     // and `Change` node actions we want to transfer node's new state.
     std::optional<NodeInfo> data;
 };
+
+using TreeActionsBatch = std::vector<TreeAction>;
 
 } // namespace NVis

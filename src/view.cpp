@@ -1,9 +1,5 @@
 #include "view.h"
 
-#include "observer.h"
-#include "public.h"
-#include "tree_action.h"
-
 #include <QColor>
 #include <QEventLoop>
 #include <QGraphicsRectItem>

@@ -1,8 +1,5 @@
 #include "two_three_tree.h"
 
-#include "public.h"
-#include "tree_action.h"
-
 #include <algorithm>
 #include <cassert>
 

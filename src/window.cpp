@@ -1,5 +1,7 @@
 #include "window.h"
 
+#include <QGridLayout>
+
 namespace NVis {
 
 Window::Window()
@@ -12,8 +14,7 @@ Window::Window()
 
     auto central_widget = new QWidget(this);
     setCentralWidget(central_widget);
-    auto layout = new QGridLayout;
-    centralWidget()->setLayout(layout);
+    auto layout = new QGridLayout(central_widget);
 
     layout->addWidget(view_, 0, 0, 0, -1);
     layout->addWidget(key_edit_, 1, 0, 1, -1);

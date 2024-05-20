@@ -1,9 +1,6 @@
 #pragma once
 
-#include "public.h"
-
 #include <QGraphicsView>
-#include <QGridLayout>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QObject>
@@ -28,14 +25,14 @@ public:
     QPushButton* GetSearchButton();
 
 private:
+    static constexpr int kWidth = 1280;
+    static constexpr int kHeight = 720;
+
     QGraphicsView* view_;
     QLineEdit* key_edit_;
     QPushButton* insert_button_;
     QPushButton* erase_button_;
     QPushButton* search_button_;
-
-    static constexpr int kWidth = 1280;
-    static constexpr int kHeight = 720;
 };
 
 } // namespace NVis

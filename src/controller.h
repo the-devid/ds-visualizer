@@ -1,12 +1,14 @@
 #pragma once
 
-#include "public.h"
+#include "two_three_tree.h"
 
 #include <QLineEdit>
 #include <QObject>
 #include <QPushButton>
 
 namespace NVis {
+
+using Model = TwoThreeTree;
 
 class Controller : public QObject {
     Q_OBJECT
