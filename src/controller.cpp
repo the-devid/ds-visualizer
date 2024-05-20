@@ -14,33 +14,9 @@ void ShowIncorrectInputMessage() {
 }
 } // namespace
 
-Controller::Controller(Model* model, QLineEdit* key_edit, QPushButton* insert_button, QPushButton* erase_button,
-                       QPushButton* search_button)
-    : model_(model),
-      key_edit_(key_edit),
-      insert_button_(insert_button),
-      erase_button_(erase_button),
-      search_button_(search_button) {}
+Controller::Controller(Model* model, QLineEdit* key_edit) : model_(model), key_edit_(key_edit) {}
 
 void Controller::OnInsertButtonClick() {
-    SetButtonsState(/*enabled=*/false);
-    HandleInsertRequest();
-    SetButtonsState(/*enabled=*/true);
-}
-
-void Controller::OnEraseButtonClick() {
-    SetButtonsState(/*enabled=*/false);
-    HandleEraseRequest();
-    SetButtonsState(/*enabled=*/true);
-}
-
-void Controller::OnSearchButtonClick() {
-    SetButtonsState(/*enabled=*/false);
-    HandleSearchRequest();
-    SetButtonsState(/*enabled=*/true);
-}
-
-void Controller::HandleInsertRequest() const {
     if (!model_) {
         return;
     }
@@ -52,7 +28,7 @@ void Controller::HandleInsertRequest() const {
     }
 }
 
-void Controller::HandleEraseRequest() const {
+void Controller::OnEraseButtonClick() {
     if (!model_) {
         return;
     }
@@ -64,7 +40,7 @@ void Controller::HandleEraseRequest() const {
     }
 }
 
-void Controller::HandleSearchRequest() const {
+void Controller::OnSearchButtonClick() {
     if (!model_) {
         return;
     }
@@ -88,18 +64,6 @@ std::optional<Key> Controller::TryGetKeyFromEdit() const {
         return key;
     } else {
         return std::nullopt;
-    }
-}
-
-void Controller::SetButtonsState(bool enabled) const {
-    if (insert_button_) {
-        insert_button_->setEnabled(enabled);
-    }
-    if (erase_button_) {
-        erase_button_->setEnabled(enabled);
-    }
-    if (search_button_) {
-        search_button_->setEnabled(enabled);
     }
 }
 

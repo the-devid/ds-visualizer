@@ -10,12 +10,7 @@ Application& Application::Instance() {
     return app;
 }
 
-Application::Application()
-    : view_(),
-      window_(),
-      model_(),
-      controller_(&model_, window_.GetKeyEdit(), window_.GetInsertButton(), window_.GetEraseButton(),
-                  window_.GetSearchButton()) {
+Application::Application() : view_(), window_(), model_(), controller_(&model_, window_.GetKeyEdit()) {
 
     QObject::connect(window_.GetInsertButton(), &QPushButton::clicked, &controller_, &Controller::OnInsertButtonClick);
     QObject::connect(window_.GetEraseButton(), &QPushButton::clicked, &controller_, &Controller::OnEraseButtonClick);

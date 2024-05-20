@@ -19,7 +19,7 @@
 
 namespace NVis {
 
-struct View::DrawingInfo {
+class DrawingInfo::DrawingInfoImpl {
     static constexpr qreal kCellWidth = 50;
     static constexpr qreal kCellHeight = 30;
     static constexpr qreal kVerticalMargin = 50;
@@ -30,21 +30,57 @@ struct View::DrawingInfo {
         std::vector<MemoryAddress> children;
         QColor background_color = QColorConstants::White;
     };
-    MemoryAddress root = nullptr;
-    //! Not only maps Model nodes' addresses to drawable nodes, but also owns them.
-    std::unordered_map<MemoryAddress, NodeForDraw> address_to_node;
 
-    ssize_t leaf_node_count;
-    ssize_t leaf_key_count;
-    ssize_t visited_leaf_node_count;
-    ssize_t visited_leaf_key_count;
-    // This is for "garbage collection" purposes.
-    std::unordered_set<MemoryAddress> visited_nodes;
+public:
+    void DrawActions(const TreeActionsBatch& actions, QGraphicsScene* scene) {
+        for (const auto& action : actions) {
+            switch (action.action_type) {
 
+            case ENodeAction::StartQuery:
+                [[fallthrough]];
+            case ENodeAction::EndQuery:
+                break;
+            case ENodeAction::Create:
+                assert(!address_to_node_.contains(action.node_address) && "Creating already existed node");
+                assert(action.data.has_value() && "No data when creating new node");
+                address_to_node_[action.node_address] = NodeForDraw{
+                    .keys = action.data->keys,
+                    .children = action.data->children,
+                    .background_color = QColorConstants::Green,
+                };
+                break;
+            case ENodeAction::Delete:
+                assert(address_to_node_.contains(action.node_address) && "Deleting non-existing node");
+                address_to_node_.erase(action.node_address);
+                break;
+            case ENodeAction::Change:
+                assert(address_to_node_.contains(action.node_address) && "Changing non-existing node");
+                assert(action.data.has_value() && "No data when changing a node");
+                address_to_node_[action.node_address] = NodeForDraw{
+                    .keys = action.data->keys,
+                    .children = action.data->children,
+                    .background_color = QColorConstants::Yellow,
+                };
+                break;
+            case ENodeAction::MakeRoot:
+                assert((action.node_address == nullptr || address_to_node_.contains(action.node_address)) &&
+                       "Making a non-existing node a root");
+                root_ = action.node_address;
+                break;
+            case ENodeAction::Visit:
+                assert(address_to_node_.contains(action.node_address) && "Visiting a non-existing node");
+                address_to_node_[action.node_address].background_color = QColorConstants::Cyan;
+                break;
+            }
+        }
+        DrawTree(scene);
+    }
+
+private:
     void RecalculateLeafCounters() {
-        leaf_node_count = 0;
-        leaf_key_count = 0;
-        RecalculateLeafCountersRecursively(root);
+        leaf_node_count_ = 0;
+        leaf_key_count_ = 0;
+        RecalculateLeafCountersRecursively(root_);
     }
 
     void RecalculateLeafCountersRecursively(MemoryAddress vertex) {
@@ -52,32 +88,32 @@ struct View::DrawingInfo {
             return;
         }
         // Leaf is a node without children.
-        if (address_to_node[vertex].children.empty()) {
-            leaf_node_count += 1;
-            leaf_key_count += std::ssize(address_to_node[vertex].keys);
+        if (address_to_node_[vertex].children.empty()) {
+            leaf_node_count_ += 1;
+            leaf_key_count_ += std::ssize(address_to_node_[vertex].keys);
         }
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            RecalculateLeafCountersRecursively(address_to_node[vertex].children[i]);
+        for (ssize_t i = 0; i < std::ssize(address_to_node_[vertex].children); ++i) {
+            RecalculateLeafCountersRecursively(address_to_node_[vertex].children[i]);
         }
     }
 
     void DrawTree(QGraphicsScene* scene) {
         RecalculateLeafCounters();
-        visited_leaf_key_count = 0;
-        visited_leaf_node_count = 0;
-        visited_nodes.clear();
+        visited_leaf_key_count_ = 0;
+        visited_leaf_node_count_ = 0;
+        visited_nodes_.clear();
         scene->clear();
-        RecursiveDrawTree(root, scene);
-        CleanBackgroundRecursively(root);
+        RecursiveDrawTree(root_, scene);
+        CleanBackgroundRecursively(root_);
         // Garbage collecting. First we write all the nodes we don't need to store, then erase them.
         std::unordered_set<MemoryAddress> nodes_to_delete;
-        for (const auto& [address, node] : address_to_node) {
-            if (!visited_nodes.contains(address)) {
+        for (const auto& [address, node] : address_to_node_) {
+            if (!visited_nodes_.contains(address)) {
                 nodes_to_delete.insert(address);
             }
         }
         for (auto deleting_address : nodes_to_delete) {
-            address_to_node.erase(deleting_address);
+            address_to_node_.erase(deleting_address);
         }
     }
 
@@ -88,37 +124,37 @@ struct View::DrawingInfo {
             return std::nullopt;
         }
         // Maybe "left to us" is better to understand than "lefter"...
-        auto lefter_leaf_node_count = visited_leaf_node_count;
-        auto lefter_leaf_key_count = visited_leaf_key_count;
-        visited_nodes.emplace(vertex);
+        auto lefter_leaf_node_count = visited_leaf_node_count_;
+        auto lefter_leaf_key_count = visited_leaf_key_count_;
+        visited_nodes_.emplace(vertex);
         std::optional<QPointF> top_left_corner;
         std::vector<QPointF> children_positions;
-        children_positions.reserve(address_to_node[vertex].children.size());
+        children_positions.reserve(address_to_node_[vertex].children.size());
         // Important invariant of this function is that we first traverse through our children and only then draw
         // ourselves.
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            auto child_position = RecursiveDrawTree(address_to_node[vertex].children[i], scene, current_height + 1);
+        for (ssize_t i = 0; i < std::ssize(address_to_node_[vertex].children); ++i) {
+            auto child_position = RecursiveDrawTree(address_to_node_[vertex].children[i], scene, current_height + 1);
             assert(child_position.has_value() && "Incorrect position of rectangle when drawing");
             children_positions.emplace_back(child_position.value());
         }
-        if (address_to_node[vertex].children.empty()) {
-            visited_leaf_node_count++;
-            visited_leaf_key_count += std::ssize(address_to_node[vertex].keys);
+        if (address_to_node_[vertex].children.empty()) {
+            visited_leaf_node_count_++;
+            visited_leaf_key_count_ += std::ssize(address_to_node_[vertex].keys);
         }
         qreal left_subtree_border = lefter_leaf_key_count * kCellWidth + lefter_leaf_node_count * kHorizontalMargin;
         qreal right_subtree_border =
-            visited_leaf_key_count * kCellWidth + (visited_leaf_node_count - 1) * kHorizontalMargin;
+            visited_leaf_key_count_ * kCellWidth + (visited_leaf_node_count_ - 1) * kHorizontalMargin;
         // "A middle point of the node being drawn". Try to fit it in a variable's name. And yes, we could write
         // `(l+r)/2` instead of `l+(r-l)/2`, but second option seems more precision-friendly and intuitive.
         qreal drawing_node_midpoint = left_subtree_border + (right_subtree_border - left_subtree_border) / 2.0;
-        top_left_corner = QPointF(drawing_node_midpoint - address_to_node[vertex].keys.size() * kCellWidth / 2.0,
+        top_left_corner = QPointF(drawing_node_midpoint - address_to_node_[vertex].keys.size() * kCellWidth / 2.0,
                                   current_height * (kCellHeight + kHorizontalMargin));
 
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].keys); ++i) {
+        for (ssize_t i = 0; i < std::ssize(address_to_node_[vertex].keys); ++i) {
             auto position_to_draw = QPointF(top_left_corner->x() + i * kCellWidth, top_left_corner->y());
             auto rectangle_item = scene->addRect(position_to_draw.x(), position_to_draw.y(), kCellWidth, kCellHeight,
-                                                 QPen(), QBrush(address_to_node[vertex].background_color));
-            auto text_item = scene->addText(QString::number(address_to_node[vertex].keys[i]));
+                                                 QPen(), QBrush(address_to_node_[vertex].background_color));
+            auto text_item = scene->addText(QString::number(address_to_node_[vertex].keys[i]));
             // Positioning in the center of Cell.
             text_item->setPos(rectangle_item->mapToScene(rectangle_item->boundingRect().center()) +
                               (text_item->boundingRect().topLeft() - text_item->boundingRect().center()));
@@ -143,34 +179,65 @@ struct View::DrawingInfo {
         if (vertex == nullptr) {
             return;
         }
-        address_to_node[vertex].background_color = QColorConstants::White;
-        for (ssize_t i = 0; i < std::ssize(address_to_node[vertex].children); ++i) {
-            CleanBackgroundRecursively(address_to_node[vertex].children[i]);
+        address_to_node_[vertex].background_color = QColorConstants::White;
+        for (ssize_t i = 0; i < std::ssize(address_to_node_[vertex].children); ++i) {
+            CleanBackgroundRecursively(address_to_node_[vertex].children[i]);
         }
     }
+
+    MemoryAddress root_ = nullptr;
+    //! Not only maps Model nodes' addresses to drawable nodes, but also owns them.
+    std::unordered_map<MemoryAddress, NodeForDraw> address_to_node_;
+
+    ssize_t leaf_node_count_;
+    ssize_t leaf_key_count_;
+    ssize_t visited_leaf_node_count_;
+    ssize_t visited_leaf_key_count_;
+    // This is for "garbage collection" purposes.
+    std::unordered_set<MemoryAddress> visited_nodes_;
 };
 
-View::View()
-    : drawing_info_ptr_(std::make_unique<DrawingInfo>()),
-      port_([this](const TreeActionsBatch& changes) { this->HandleNotification(changes); },
-            [this](const TreeActionsBatch& changes) { this->HandleNotification(changes); }, []() {}) {}
+DrawingInfo::DrawingInfo() : impl_(std::make_unique<DrawingInfoImpl>()) {}
 
-View::~View() = default;
+DrawingInfo::~DrawingInfo() = default;
+
+void DrawingInfo::DrawActions(const TreeActionsBatch& actions) {
+    impl_->DrawActions(actions, &scene_);
+}
+
+QGraphicsScene* DrawingInfo::GetScenePort() {
+    return &scene_;
+}
+
+View::View()
+    : drawing_info_(std::make_unique<DrawingInfo>()),
+      port_([this](const TreeActionsBatch& changes) { this->HandleNotification(changes); },
+            [this](const TreeActionsBatch& changes) { this->HandleNotification(changes); }, []() {}),
+      animation_timer_() {
+    animation_timer_.setSingleShot(true);
+    QObject::connect(&animation_timer_, &QTimer::timeout, [this]() { this->AnimateQueries(); });
+}
 
 void View::HandleNotification(const TreeActionsBatch& actions) {
     for (ssize_t action_ind = 0; action_ind < std::ssize(actions); ++action_ind) {
         const auto& action = actions[action_ind];
         if (action.action_type == ENodeAction::StartQuery) {
             assert(action_ind == 0 && "Garbage before StartQuery action");
-            // Note: this case is significant for async animation. It doesn't matter while animation happens in
-            // signal-handler (being a long-time operation), so we simply check a correctness of an operation.
-            assert(storage_.empty());
+            // Note: this case is significant for async animation.
+            // TODO: pull this in helper function.
+            while (!storage_.empty()) {
+                drawing_info_->DrawActions(storage_.front());
+                storage_.pop();
+            }
+            if (animation_timer_.isActive()) {
+                animation_timer_.stop();
+            }
         }
         if (action.action_type == ENodeAction::EndQuery) {
             assert(action_ind + 1 == std::ssize(actions) && "Garbage after EndQuery action");
         }
     }
-    storage_.emplace_back(actions);
+    storage_.emplace(actions);
     if (actions.back().action_type == ENodeAction::EndQuery) {
         AnimateQueries();
     }
@@ -181,72 +248,15 @@ Observer<TreeActionsBatch>* View::GetTreeActionsPort() {
 }
 
 QGraphicsScene* View::GetGraphicsModelPort() {
-    return &scene_;
+    return drawing_info_->GetScenePort();
 }
-
-namespace {
-void DoNonBlockingDelay(int delay_msec) {
-    QEventLoop loop;
-    QTimer t;
-    t.setSingleShot(true);
-    QTimer::connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
-    t.start(delay_msec);
-    loop.exec();
-}
-} // namespace
 
 void View::AnimateQueries() {
-    for (const auto& actions_batch : storage_) {
-        for (const auto& action : actions_batch) {
-            switch (action.action_type) {
-
-            case ENodeAction::StartQuery:
-                [[fallthrough]];
-            case ENodeAction::EndQuery:
-                break;
-            case ENodeAction::Create:
-                assert(!drawing_info_ptr_->address_to_node.contains(action.node_address) &&
-                       "Creating already existed node");
-                assert(action.data.has_value() && "No data when creating new node");
-                drawing_info_ptr_->address_to_node[action.node_address] = DrawingInfo::NodeForDraw{
-                    .keys = action.data->keys,
-                    .children = action.data->children,
-                    .background_color = QColorConstants::Green,
-                };
-                break;
-            case ENodeAction::Delete:
-                assert(drawing_info_ptr_->address_to_node.contains(action.node_address) &&
-                       "Deleting non-existing node");
-                drawing_info_ptr_->address_to_node.erase(action.node_address);
-                break;
-            case ENodeAction::Change:
-                assert(drawing_info_ptr_->address_to_node.contains(action.node_address) &&
-                       "Changing non-existing node");
-                assert(action.data.has_value() && "No data when changing a node");
-                drawing_info_ptr_->address_to_node[action.node_address] = DrawingInfo::NodeForDraw{
-                    .keys = action.data->keys,
-                    .children = action.data->children,
-                    .background_color = QColorConstants::Yellow,
-                };
-                break;
-            case ENodeAction::MakeRoot:
-                assert((action.node_address == nullptr ||
-                        drawing_info_ptr_->address_to_node.contains(action.node_address)) &&
-                       "Making a non-existing node a root");
-                drawing_info_ptr_->root = action.node_address;
-                break;
-            case ENodeAction::Visit:
-                assert(drawing_info_ptr_->address_to_node.contains(action.node_address) &&
-                       "Visiting a non-existing node");
-                drawing_info_ptr_->address_to_node[action.node_address].background_color = QColorConstants::Cyan;
-                break;
-            }
-        }
-        drawing_info_ptr_->DrawTree(&scene_);
-        // It seems dangerous.
-        DoNonBlockingDelay(kDelayBetweenFrames);
+    drawing_info_->DrawActions(storage_.front());
+    storage_.pop();
+    if (!storage_.empty()) {
+        animation_timer_.start(kDelayBetweenFrames);
     }
-    storage_.clear();
 }
 
 } // namespace NVis
