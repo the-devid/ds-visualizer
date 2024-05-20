@@ -23,8 +23,8 @@ Application::Application()
     QObject::connect(window_.erase_button_, &QPushButton::clicked, &controller_, &Controller::OnEraseButtonClick);
     QObject::connect(window_.search_button_, &QPushButton::clicked, &controller_, &Controller::OnSearchButtonClick);
 
-    model_.GetPort()->Subscribe(view_.GetPort());
-    window_.view_->setScene(&view_.scene_);
+    model_.SubscribeObserver(view_.GetTreeActionsPort());
+    window_.view_->setScene(view_.GetGraphicsModelPort());
 }
 
 } // namespace NVis

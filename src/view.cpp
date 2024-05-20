@@ -50,6 +50,7 @@ struct View::DrawingInfo {
         leaf_key_count = 0;
         RecalculateLeafCountersRecursively(root);
     }
+
     void RecalculateLeafCountersRecursively(MemoryAddress vertex) {
         if (vertex == nullptr) {
             return;
@@ -63,6 +64,7 @@ struct View::DrawingInfo {
             RecalculateLeafCountersRecursively(address_to_node[vertex].children[i]);
         }
     }
+
     void DrawTree(QGraphicsScene* scene) {
         RecalculateLeafCounters();
         visited_leaf_key_count = 0;
@@ -70,7 +72,6 @@ struct View::DrawingInfo {
         visited_nodes.clear();
         scene->clear();
         RecursiveDrawTree(root, scene);
-        // Cleaning backround colors for future.
         CleanBackgroundRecursively(root);
         // Garbage collecting. First we write all the nodes we don't need to store, then erase them.
         std::unordered_set<MemoryAddress> nodes_to_delete;
@@ -83,6 +84,7 @@ struct View::DrawingInfo {
             address_to_node.erase(deleting_address);
         }
     }
+
     //! Returns top-middle point of the rectangle, which bounds keys that are drawn on call.
     std::optional<QPointF> RecursiveDrawTree(MemoryAddress vertex, QGraphicsScene* scene, ssize_t current_height = 0) {
         if (vertex == nullptr) {
@@ -140,6 +142,7 @@ struct View::DrawingInfo {
         }
         return QPointF(drawing_node_midpoint, top_left_corner->y());
     }
+
     void CleanBackgroundRecursively(MemoryAddress vertex) {
         if (vertex == nullptr) {
             return;
@@ -152,22 +155,25 @@ struct View::DrawingInfo {
 };
 
 View::View()
-    : port_([]() {}, [this](TreeActionsBatch changes) { this->HandleNotification(changes); }, []() {}),
-      drawing_info_ptr_(std::make_unique<DrawingInfo>()) {}
+    : drawing_info_ptr_(std::make_unique<DrawingInfo>()),
+      port_([this](const TreeActionsBatch& changes) { this->HandleNotification(changes); },
+            [this](const TreeActionsBatch& changes) { this->HandleNotification(changes); }, []() {}) {}
 
-View::~View() {}
+View::~View() = default;
 
-void View::HandleNotification(TreeActionsBatch actions) {
+void View::HandleNotification(const TreeActionsBatch& actions) {
+    ssize_t processed_cnt = 0;
     for (const auto& action : actions) {
+        ++processed_cnt;
         if (action.action_type == ENodeAction::StartQuery) {
-            assert(actions.size() == 1 && "Incorrect batch with StartQuery action");
+            assert(processed_cnt == 1 && "Garbage before StartQuery action");
             // Note: this case is significant for async animation. It doesn't matter while animation happens in
             // signal-handler (being a long-time operation), so we simply check a correctness of an operation.
             assert(storage_.empty());
             return;
         }
         if (action.action_type == ENodeAction::EndQuery) {
-            assert(actions.size() == 1 && "Incorrect batch with EndQuery action");
+            assert(processed_cnt == std::ssize(actions) && "Garbage after EndQuery action");
             AnimateQueries();
             return;
         }
@@ -175,8 +181,12 @@ void View::HandleNotification(TreeActionsBatch actions) {
     storage_.emplace_back(actions);
 }
 
-Observer<TreeActionsBatch>* View::GetPort() {
+Observer<TreeActionsBatch>* View::GetTreeActionsPort() {
     return &port_;
+}
+
+QGraphicsScene* View::GetGraphicsModelPort() {
+    return &scene_;
 }
 
 namespace {
@@ -198,8 +208,7 @@ void View::AnimateQueries() {
             case ENodeAction::StartQuery:
                 [[fallthrough]];
             case ENodeAction::EndQuery:
-                assert(false && "Incorrect action type in animation procedure");
-                return;
+                break;
             case ENodeAction::Create:
                 assert(!drawing_info_ptr_->address_to_node.contains(action.node_address) &&
                        "Creating already existed node");

@@ -8,6 +8,8 @@
 
 namespace NVis {
 
+TwoThreeTree::TwoThreeTree() : root_(nullptr), port_([this]() { return this->ProduceWholeTreeInfo(); }) {}
+
 bool TwoThreeTree::Contains(const Key& x) const {
     port_.Notify({TreeAction{.node_address = nullptr, .action_type = ENodeAction::StartQuery, .data = std::nullopt}});
     auto node_was_found = SearchByLowerBound(x);
@@ -163,6 +165,10 @@ bool TwoThreeTree::Erase(const Key& x) {
     return true;
 }
 
+void TwoThreeTree::SubscribeObserver(Observer<TreeActionsBatch>* observer) {
+    port_.Subscribe(observer);
+}
+
 TwoThreeTree::Node* TwoThreeTree::SearchByLowerBound(const Key& x) const {
     auto vertex = root_.get();
     if (vertex == nullptr) {
@@ -295,7 +301,7 @@ void TwoThreeTree::SplitNode(Node* vertex) {
     }
 }
 
-bool TwoThreeTree::IsValid(Node* vertex) {
+bool TwoThreeTree::IsValid(Node* vertex) const {
     if (vertex == nullptr) {
         return true;
     }
@@ -332,8 +338,27 @@ NodeInfo TwoThreeTree::ProduceNodeInfo(const Node& martyr) {
     return result;
 }
 
-Observable<TreeActionsBatch>* TwoThreeTree::GetPort() {
-    return &port_;
+TreeActionsBatch TwoThreeTree::ProduceWholeTreeInfo() const {
+    TreeActionsBatch whole_actions;
+    whole_actions.emplace_back(
+        TreeAction{.node_address = nullptr, .action_type = ENodeAction::StartQuery, .data = std::nullopt});
+    TraverseForTreeInfo(root_.get(), whole_actions);
+    whole_actions.emplace_back(
+        TreeAction{.node_address = root_.get(), .action_type = ENodeAction::MakeRoot, .data = std::nullopt});
+    whole_actions.emplace_back(
+        TreeAction{.node_address = nullptr, .action_type = ENodeAction::EndQuery, .data = std::nullopt});
+    return whole_actions;
+}
+
+void TwoThreeTree::TraverseForTreeInfo(Node* vertex, TreeActionsBatch& info_storage) const {
+    if (vertex == nullptr) {
+        return;
+    }
+    for (ssize_t child_index = 0; child_index < std::ssize(vertex->keys); ++child_index) {
+        TraverseForTreeInfo(vertex->children[child_index].get(), info_storage);
+    }
+    info_storage.emplace_back(
+        TreeAction{.node_address = vertex, .action_type = ENodeAction::Create, .data = ProduceNodeInfo(*vertex)});
 }
 
 } // namespace NVis

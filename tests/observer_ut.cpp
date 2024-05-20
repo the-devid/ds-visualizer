@@ -10,26 +10,26 @@ namespace NVis {
 
 TEST(ObserverCorrectness, OneToOne) {
     std::stringstream out;
-    Observable<int> actor;
-    Observer<int> beholder([&out]() { out << "+"; }, [&out](int x) { out << x; }, [&out]() { out << "-"; });
+    Observable<int> actor([]() { return 38; });
+    Observer<int> beholder([&out](int x) { out << x << "+"; }, [&out](int x) { out << x; }, [&out]() { out << "-"; });
     actor.Subscribe(&beholder);
     EXPECT_TRUE(beholder.IsSubscribed());
     actor.Notify(1);
     actor.Notify(5);
-    EXPECT_EQ(out.str(), "+15");
+    EXPECT_EQ(out.str(), "38+15");
     actor.Notify(3);
     beholder.Unsubscribe();
     EXPECT_FALSE(beholder.IsSubscribed());
-    EXPECT_EQ(out.str(), "+153-");
+    EXPECT_EQ(out.str(), "38+153-");
 }
 
 TEST(ObserverCorrectness, OneToMany) {
     constexpr ssize_t kObserverCount = 10;
     std::vector<std::stringstream> outs(kObserverCount);
-    Observable<int> actor;
+    Observable<int> actor([]() { return 0; });
     std::vector<std::unique_ptr<Observer<int>>> beholders;
     for (ssize_t i = 0; i < kObserverCount; ++i) {
-        beholders.emplace_back(std::make_unique<Observer<int>>([&out = outs[i]]() { out << "+"; },
+        beholders.emplace_back(std::make_unique<Observer<int>>([&out = outs[i]]([[maybe_unused]] int x) { out << "+"; },
                                                                [&out = outs[i]](int x) { out << x; },
                                                                [&out = outs[i]]() { out << "-"; }));
         actor.Subscribe(beholders[i].get());
@@ -49,9 +49,9 @@ TEST(ObserverCorrectness, OneToMany) {
 
 TEST(ObserverCorrectness, DoubleSubscribe) {
     std::stringstream out;
-    auto observable = std::make_unique<Observable<int>>();
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observable = std::make_unique<Observable<int>>([]() { return 0; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     observable->Subscribe(observer.get());
     observable->Subscribe(observer.get());
     observable->Notify(1);
@@ -62,9 +62,9 @@ TEST(ObserverCorrectness, DoubleSubscribe) {
 
 TEST(ObserverCorrectness, DoubleUnsubscribe) {
     std::stringstream out;
-    auto observable = std::make_unique<Observable<int>>();
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observable = std::make_unique<Observable<int>>([]() { return 0; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     observable->Subscribe(observer.get());
     observable->Notify(1);
     observer->Unsubscribe();
@@ -74,9 +74,9 @@ TEST(ObserverCorrectness, DoubleUnsubscribe) {
 
 TEST(ObserverCorrectness, EraseObservableFirst) {
     std::stringstream out;
-    auto observable = std::make_unique<Observable<int>>();
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observable = std::make_unique<Observable<int>>([]() { return 0; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     observable->Subscribe(observer.get());
     observable->Notify(15);
     observable.reset();
@@ -87,9 +87,9 @@ TEST(ObserverCorrectness, EraseObservableFirst) {
 
 TEST(ObserverCorrectness, EraseObsevrerFirst) {
     std::stringstream out;
-    auto observable = std::make_unique<Observable<int>>();
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observable = std::make_unique<Observable<int>>([]() { return 0; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     observable->Subscribe(observer.get());
     observable->Notify(15);
     observer.reset();
@@ -100,9 +100,9 @@ TEST(ObserverCorrectness, EraseObsevrerFirst) {
 
 TEST(ObserverCorrectness, MultipleUnsubscribes) {
     std::stringstream out;
-    auto observable = std::make_unique<Observable<int>>();
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observable = std::make_unique<Observable<int>>([]() { return 0; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     observable->Subscribe(observer.get());
     observable->Notify(1);
     observer->Unsubscribe();
@@ -115,10 +115,10 @@ TEST(ObserverCorrectness, MultipleUnsubscribes) {
 
 TEST(ObserverCorrectness, Exception) {
     std::stringstream out;
-    auto observer = std::make_unique<Observer<int>>([&out]() { out << "+"; }, [&out](int x) { out << x; },
-                                                    [&out]() { out << "-"; });
+    auto observer = std::make_unique<Observer<int>>([&out]([[maybe_unused]] int x) { out << "+"; },
+                                                    [&out](int x) { out << x; }, [&out]() { out << "-"; });
     try {
-        auto observable = std::make_unique<Observable<int>>();
+        auto observable = std::make_unique<Observable<int>>([]() { return 0; });
         observable->Subscribe(observer.get());
         observable->Notify(1);
         throw std::runtime_error{""};

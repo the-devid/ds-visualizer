@@ -10,14 +10,13 @@ namespace NVis {
 class View {
 public:
     View();
-    void HandleNotification(TreeActionsBatch actions);
-    Observer<TreeActionsBatch>* GetPort();
     ~View();
 
+    Observer<TreeActionsBatch>* GetTreeActionsPort();
+    QGraphicsScene* GetGraphicsModelPort();
+
 private:
-    Observer<TreeActionsBatch> port_;
-    QGraphicsScene scene_;
-    std::vector<TreeActionsBatch> storage_;
+    void HandleNotification(const TreeActionsBatch& actions);
 
     //! Draws animation of all the stored changes in Model frame by frame and clears `storage_`.
     void AnimateQueries();
@@ -27,7 +26,9 @@ private:
     std::unique_ptr<DrawingInfo> drawing_info_ptr_;
 
     static constexpr int kDelayBetweenFrames = 300;
-    friend class Application;
+    Observer<TreeActionsBatch> port_;
+    QGraphicsScene scene_;
+    std::vector<TreeActionsBatch> storage_;
 };
 
 } // namespace NVis

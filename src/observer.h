@@ -47,16 +47,19 @@ private:
     }
     Observable<TData>* observable_ = nullptr;
 
-    std::function<void()> on_subscribe_;
-    std::function<void(TData)> on_notify_;
+    std::function<void(const TData&)> on_subscribe_;
+    std::function<void(const TData&)> on_notify_;
     std::function<void()> on_unsubscribe_;
 };
 
-template <class TData>
+template <typename TData>
 class Observable {
 public:
-    Observable() = default;
+    template <typename TSubscribeDataFunc>
+    Observable(TSubscribeDataFunc&& subscribe_data_func)
+        : subscribe_data_(std::forward<TSubscribeDataFunc>(subscribe_data_func)) {}
 
+    Observable() = delete;
     Observable(const Observable&) = delete;
     Observable& operator=(const Observable&) = delete;
     Observable(Observable&&) = delete;
@@ -64,7 +67,7 @@ public:
 
     ~Observable() {
         while (!subscribers_.empty()) {
-            Detach(subscribers_.front());
+            subscribers_.front()->Unsubscribe();
         }
     }
 
@@ -75,21 +78,21 @@ public:
         }
         subscribers_.emplace_back(observer);
         observer->SetObservable(this);
-        observer->on_subscribe_();
+        observer->on_subscribe_(subscribe_data_());
     }
-    void Notify(TData data) {
-        for (auto& subscriber : subscribers_) {
+    void Notify(TData data) const {
+        for (auto subscriber : subscribers_) {
             subscriber->on_notify_(data);
         }
     }
 
 private:
     void Detach(Observer<TData>* observer) {
-        subscribers_.remove(observer);
-        observer->SetObservable(nullptr);
         observer->on_unsubscribe_();
+        subscribers_.remove(observer);
     }
     std::list<Observer<TData>*> subscribers_;
+    std::function<TData()> subscribe_data_;
     friend Observer<TData>;
 };
 
