@@ -27,10 +27,11 @@ endif()
 
 add_executable(ds_visualizer
     main.cpp 
+    src/animation_producer.cpp
     src/application.cpp
     src/controller.cpp
+    src/tree_drawing_model.cpp
     src/two_three_tree.cpp
-    src/view.cpp
     src/window.cpp
 )
 

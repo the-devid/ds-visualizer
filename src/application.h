@@ -1,8 +1,9 @@
 #pragma once
 
+#include "animation_producer.h"
 #include "controller.h"
+#include "tree_drawing_model.h"
 #include "two_three_tree.h"
-#include "view.h"
 #include "window.h"
 
 namespace NVis {

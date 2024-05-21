@@ -1,7 +1,5 @@
 #include "application.h"
 
-#include "view.h"
-
 namespace NVis {
 
 Application::Application()

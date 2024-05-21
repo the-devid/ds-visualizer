@@ -2,28 +2,13 @@
 
 #include "observer.h"
 #include "tree_action.h"
+#include "tree_drawing_model.h"
 
-#include <QGraphicsScene>
 #include <QTimer>
 
 #include <queue>
 
 namespace NVis {
-
-class TreeDrawingModel {
-    class TreeDrawingModelImpl;
-
-public:
-    TreeDrawingModel();
-    ~TreeDrawingModel();
-
-    void DrawActions(const TreeActionsBatch& actions);
-    QGraphicsScene* GetScenePort();
-
-private:
-    std::unique_ptr<TreeDrawingModelImpl> impl_;
-    QGraphicsScene scene_;
-};
 
 class AnimationProducer {
     static constexpr int kDelayBetweenFrames = 300;
