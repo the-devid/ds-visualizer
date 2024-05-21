@@ -4,11 +4,6 @@
 
 namespace NVis {
 
-Application& Application::Instance() {
-    static Application app;
-    return app;
-}
-
 Application::Application()
     : animation_producer_(&drawing_model_),
       drawing_model_(),
@@ -22,6 +17,9 @@ Application::Application()
 
     model_.SubscribeObserver(animation_producer_.GetTreeActionsPort());
     window_.SubscribeViewWidgetTo(drawing_model_.GetScenePort());
+}
+
+void Application::ShowWindow() {
     window_.show();
 }
 

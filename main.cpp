@@ -2,7 +2,8 @@
 #include <QApplication>
 
 int main(int argc, char** argv) {
-    QApplication qt_app(argc, argv);
-    NVis::Application::Instance();
-    return qt_app.exec();
+    QApplication qt_runtime(argc, argv);
+    NVis::Application app;
+    app.ShowWindow();
+    return qt_runtime.exec();
 }
