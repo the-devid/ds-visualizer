@@ -20,7 +20,8 @@ private:
     Application& operator=(Application&&) = delete;
     ~Application() = default;
 
-    View view_;
+    AnimationProducer animation_producer_;
+    TreeDrawingModel drawing_model_;
     Window window_;
     Model model_;
     Controller controller_;

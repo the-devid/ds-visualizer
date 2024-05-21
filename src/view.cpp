@@ -1,4 +1,5 @@
 #include "view.h"
+#include "tree_action.h"
 
 #include <QColor>
 #include <QEventLoop>
@@ -11,6 +12,7 @@
 #include <QThread>
 #include <QTimer>
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <optional>
@@ -19,7 +21,7 @@
 
 namespace NVis {
 
-class DrawingInfo::DrawingInfoImpl {
+class TreeDrawingModel::TreeDrawingModelImpl {
     static constexpr qreal kCellWidth = 50;
     static constexpr qreal kCellHeight = 30;
     static constexpr qreal kVerticalMargin = 50;
@@ -197,41 +199,38 @@ private:
     std::unordered_set<MemoryAddress> visited_nodes_;
 };
 
-DrawingInfo::DrawingInfo() : impl_(std::make_unique<DrawingInfoImpl>()) {}
+TreeDrawingModel::TreeDrawingModel() : impl_(std::make_unique<TreeDrawingModelImpl>()) {}
 
-DrawingInfo::~DrawingInfo() = default;
+TreeDrawingModel::~TreeDrawingModel() = default;
 
-void DrawingInfo::DrawActions(const TreeActionsBatch& actions) {
+void TreeDrawingModel::DrawActions(const TreeActionsBatch& actions) {
     impl_->DrawActions(actions, &scene_);
 }
 
-QGraphicsScene* DrawingInfo::GetScenePort() {
+QGraphicsScene* TreeDrawingModel::GetScenePort() {
     return &scene_;
 }
 
-View::View()
-    : drawing_info_(std::make_unique<DrawingInfo>()),
-      port_([this](const TreeActionsBatch& changes) { this->HandleNotification(changes); },
+AnimationProducer::AnimationProducer(TreeDrawingModel* drawing_model)
+    : port_([this](const TreeActionsBatch& changes) { this->HandleNotification(changes); },
             [this](const TreeActionsBatch& changes) { this->HandleNotification(changes); }, []() {}),
-      animation_timer_() {
+      animation_timer_(),
+      drawing_model_(drawing_model) {
     animation_timer_.setSingleShot(true);
     QObject::connect(&animation_timer_, &QTimer::timeout, [this]() { this->AnimateQueries(); });
 }
 
-void View::HandleNotification(const TreeActionsBatch& actions) {
+Observer<TreeActionsBatch>* AnimationProducer::GetTreeActionsPort() {
+    return &port_;
+}
+
+void AnimationProducer::HandleNotification(const TreeActionsBatch& actions) {
+    // TODO: rewrite this in few `assert(std::find_if(...) == ...)`
     for (ssize_t action_ind = 0; action_ind < std::ssize(actions); ++action_ind) {
         const auto& action = actions[action_ind];
         if (action.action_type == ENodeAction::StartQuery) {
             assert(action_ind == 0 && "Garbage before StartQuery action");
-            // Note: this case is significant for async animation.
-            // TODO: pull this in helper function.
-            while (!storage_.empty()) {
-                drawing_info_->DrawActions(storage_.front());
-                storage_.pop();
-            }
-            if (animation_timer_.isActive()) {
-                animation_timer_.stop();
-            }
+            FinishAnimationImmediately();
         }
         if (action.action_type == ENodeAction::EndQuery) {
             assert(action_ind + 1 == std::ssize(actions) && "Garbage after EndQuery action");
@@ -243,19 +242,25 @@ void View::HandleNotification(const TreeActionsBatch& actions) {
     }
 }
 
-Observer<TreeActionsBatch>* View::GetTreeActionsPort() {
-    return &port_;
-}
-
-QGraphicsScene* View::GetGraphicsModelPort() {
-    return drawing_info_->GetScenePort();
-}
-
-void View::AnimateQueries() {
-    drawing_info_->DrawActions(storage_.front());
+void AnimationProducer::AnimateQueries() {
+    if (drawing_model_) {
+        drawing_model_->DrawActions(storage_.front());
+    }
     storage_.pop();
     if (!storage_.empty()) {
         animation_timer_.start(kDelayBetweenFrames);
+    }
+}
+
+void AnimationProducer::FinishAnimationImmediately() {
+    while (!storage_.empty()) {
+        if (drawing_model_) {
+            drawing_model_->DrawActions(storage_.front());
+        }
+        storage_.pop();
+    }
+    if (animation_timer_.isActive()) {
+        animation_timer_.stop();
     }
 }
 
