@@ -15,11 +15,6 @@
 namespace NVis {
 
 class TreeDrawingModel::TreeDrawingModelImpl {
-    static constexpr qreal kCellWidth = 50;
-    static constexpr qreal kCellHeight = 30;
-    static constexpr qreal kVerticalMargin = 50;
-    static constexpr qreal kHorizontalMargin = 50;
-
     struct NodeForDraw {
         std::vector<Key> keys;
         std::vector<MemoryAddress> children;
@@ -179,6 +174,11 @@ private:
             CleanBackgroundRecursively(address_to_node_[vertex].children[i]);
         }
     }
+
+    static constexpr qreal kCellWidth = 50;
+    static constexpr qreal kCellHeight = 30;
+    static constexpr qreal kVerticalMargin = 50;
+    static constexpr qreal kHorizontalMargin = 50;
 
     MemoryAddress root_ = nullptr;
     //! Not only maps Model nodes' addresses to drawable nodes, but also owns them.

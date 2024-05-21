@@ -11,8 +11,6 @@
 namespace NVis {
 
 class AnimationProducer {
-    static constexpr int kDelayBetweenFrames = 300;
-
 public:
     AnimationProducer(TreeDrawingModel* drawing_model);
     Observer<TreeActionsBatch>* GetTreeActionsPort();
@@ -23,6 +21,8 @@ private:
     //! itself with `QTimer`. This animation "loop" can be cancelled by `HandleNotification`.
     void AnimateQueries();
     void FinishAnimationImmediately();
+
+    static constexpr int kDelayBetweenFrames = 300;
 
     Observer<TreeActionsBatch> port_;
     std::queue<TreeActionsBatch> storage_;

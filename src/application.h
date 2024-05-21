@@ -23,7 +23,7 @@ private:
     AnimationProducer animation_producer_;
     TreeDrawingModel drawing_model_;
     Window window_;
-    Model model_;
+    TwoThreeTree model_;
     Controller controller_;
 };
 
